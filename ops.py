@@ -184,6 +184,38 @@ def flatten(x):
 # Residual-block
 ##################################################################################
 
+def adain_resblock(context, x_init, channels, use_bias=True, sn=False, scope='adain_resblock'):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.variable_scope(scope) :
+        x = adain(context, x_init, channel_in, use_bias=use_bias, sn=False, scope='adain_1')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
+
+        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='adain_2')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
+
+        if channel_in != channels :
+            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='adain_shortcut')
+            x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
+
+        return x + x_init
+
+def adain(context, x_init, channels, use_bias=True, sn=False, scope='adain'):
+    with tf.variable_scope(scope) :
+        x = param_free_norm(x_init)
+
+        _, x_h, x_w, _ = x_init.get_shape().as_list()
+
+        context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
+        context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
+
+        x = x * (1 + context_gamma) + context_beta
+
+        return x
+
 def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope='spade_resblock'):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
@@ -269,6 +301,8 @@ def relu(x):
 def tanh(x):
     return tf.tanh(x)
 
+def softmax(x):
+    return tf.nn.softmax(x)
 
 ##################################################################################
 # Normalization function
@@ -391,6 +425,8 @@ def z_sample(mean, logvar):
 
     return mean + tf.exp(logvar * 0.5) * eps
 
+def ce_loss(p,q_logits):
+    return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=p, logits=q_logits))
 
 def kl_loss(mean, logvar):
     # shape : [batch_size, channel]

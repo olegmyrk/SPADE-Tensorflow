@@ -187,6 +187,12 @@ def augmentation(image, segmap, augment_height, augment_width):
 
     return image, segmap
 
+def save_segmaps(images, color_map, size, image_path):
+    result = np.zeros(list(images.shape) + [3])
+    for color, color_idx in color_map.items():
+        result[images == color_idx, :] = color
+    return imsave(result, size, image_path)
+
 def save_images(images, size, image_path):
     return imsave(inverse_transform(images), size, image_path)
 

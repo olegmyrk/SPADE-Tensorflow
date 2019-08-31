@@ -14,7 +14,7 @@ def parse_args():
     # The total number of iterations is [epoch * iteration]
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
-    parser.add_argument('--print_freq', type=int, default=1000, help='The number of image_print_freq')
+    parser.add_argument('--print_freq', type=int, default=100, help='The number of image_print_freq')
     parser.add_argument('--save_freq', type=int, default=50000, help='The number of ckpt_save_freq')
     parser.add_argument('--decay_flag', type=str2bool, default=True, help='The decay_flag')
     parser.add_argument('--decay_epoch', type=int, default=50, help='decay epoch')
@@ -24,6 +24,9 @@ def parse_args():
 
     parser.add_argument('--num_style', type=int, default=3, help='number of styles to sample')
     parser.add_argument('--guide_img', type=str, default='guide.jpg', help='Style guided image translation')
+    
+    parser.add_argument('--segmap_ce_weight', type=int, default=1.0, help='Weight about segmap cross entropy loss')
+    parser.add_argument('--segmap_kl_weight', type=float, default=1.0, help='Weight about segmap kl-divergence')
 
     parser.add_argument('--ld', type=float, default=10.0, help='The gradient penalty lambda')
     parser.add_argument('--adv_weight', type=int, default=1, help='Weight about GAN')
@@ -32,6 +35,7 @@ def parse_args():
     parser.add_argument('--kl_weight', type=float, default=0.05, help='Weight about kl-divergence')
 
     parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan-gp / wgan-lp / dragan')
+    parser.add_argument('--segmap_ch', type=int, default=64, help='base segmap channel number per layer')
     parser.add_argument('--ch', type=int, default=64, help='base channel number per layer')
 
     parser.add_argument('--n_dis', type=int, default=4, help='The number of discriminator layer')
@@ -42,15 +46,20 @@ def parse_args():
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--beta2', type=float, default=0.999, help='momentum term of adam')
 
+    parser.add_argument('--segmap_num_upsampling_layers', type=str, default='more',
+                        choices=('less', 'normal', 'more', 'most'),
+                        help="If 'more', adds upsampling layer between the two middle resnet blocks. "
+                             "If 'most', also add one more upsampling + resnet layer at the end of the generator")
+
     parser.add_argument('--num_upsampling_layers', type=str, default='more',
-                        choices=('normal', 'more', 'most'),
+                        choices=('less', 'normal', 'more', 'most'),
                         help="If 'more', adds upsampling layer between the two middle resnet blocks. "
                              "If 'most', also add one more upsampling + resnet layer at the end of the generator")
 
     parser.add_argument('--img_height', type=int, default=256, help='The height size of image')
     parser.add_argument('--img_width', type=int, default=256, help='The width size of image ')
     parser.add_argument('--img_ch', type=int, default=3, help='The size of image channel')
-    parser.add_argument('--segmap_ch', type=int, default=3, help='The size of segmap channel')
+    parser.add_argument('--segmap_img_ch', type=int, default=3, help='The size of segmap image channel')
     parser.add_argument('--augment_flag', type=str2bool, default=True, help='Image augmentation use or not')
 
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoint',
