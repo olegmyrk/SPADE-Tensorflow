@@ -1,3 +1,4 @@
+import sys
 from ops import *
 from utils import *
 import time
@@ -117,7 +118,7 @@ class SPADE(object):
     ##################################################################################.
 
     def image_encoder_base(self, x_init, channel):
-        x = resize_256(x_init)
+        x = resize(x_init, self.img_height, self.img_width)
         x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv')
         x = instance_norm(x, scope='ins_norm')
 
@@ -168,7 +169,7 @@ class SPADE(object):
             else :
                 x = z_sample(x_mean, x_var)
 
-            context = x 
+            context = tf.zeros_like(x) 
 
             if self.segmap_num_upsampling_layers == 'less':
                 num_up_layers = 4
@@ -219,9 +220,8 @@ class SPADE(object):
 
             x = lrelu(x, 0.2)
             x = conv(x, channels=self.segmap_out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
-            x = softmax(x)
 
-            return x, softmax(x)
+            return x
 
     def generator(self, segmap, x_mean, x_var, random_style=False, reuse=False, scope="generator"):
         channel = self.ch * 4 * 4
@@ -335,9 +335,9 @@ class SPADE(object):
         else :
             x_mean, x_var = self.image_encoder_layout(x_img, reuse=reuse, scope='encoder_layout')
 
-        x, x_logits = self.generator_segmap(x_mean, x_var, random_layout, reuse=reuse, scope='generator_segmap')
+        x_logits = self.generator_segmap(x_mean, x_var, random_layout, reuse=reuse, scope='generator_segmap')
 
-        return x, x_logits, x_mean, x_var
+        return x_logits, x_mean, x_var
 
     def image_translate(self, segmap_img, x_img=None, random_style=False, reuse=False):
 
@@ -425,14 +425,14 @@ class SPADE(object):
 
 
         """ Define Generator, Discriminator """
-        fake_x_segmap, fake_x_segmap_logits, x_segmap_mean, x_segmap_var = self.image_translate_segmap(x_img=self.real_x)
-        fake_x, x_mean, x_var = self.image_translate(segmap_img=fake_x_segmap, x_img=self.real_x)
-        real_logit, fake_logit = self.image_discriminate(real_segmap_img=self.real_x_segmap_onehot, real_img=self.real_x, fake_segmap_img=fake_x_segmap, fake_img=fake_x)
+        fake_x_segmap_logits, x_segmap_mean, x_segmap_var = self.image_translate_segmap(x_img=self.real_x)
+        ###GGG###fake_x, x_mean, x_var = self.image_translate(segmap_img=fake_x_segmap, x_img=self.real_x)
+        ###GGG###real_logit, fake_logit = self.image_discriminate(real_segmap_img=self.real_x_segmap_onehot, real_img=self.real_x, fake_segmap_img=fake_x_segmap, fake_img=fake_x)
 
-        if self.gan_type.__contains__('wgan') or self.gan_type == 'dragan':
-            GP = self.gradient_penalty(real=self.real_x, real_segmap=self.real_x_segmap_onehot, fake=fake_x, fake_segmap=fake_x_segmap)
-        else:
-            GP = 0
+        ###GGG###if self.gan_type.__contains__('wgan') or self.gan_type == 'dragan':
+        ###GGG###    GP = self.gradient_penalty(real=self.real_x, real_segmap=self.real_x_segmap_onehot, fake=fake_x, fake_segmap=fake_x_segmap)
+        ###GGG###else:
+        ###GGG###    GP = 0
 
         """ Define Loss """
         segmap_g_kl_loss = self.segmap_kl_weight * kl_loss(x_segmap_mean, x_segmap_var)
@@ -441,37 +441,38 @@ class SPADE(object):
 
         self.segmap_g_loss = segmap_g_kl_loss + segmap_g_ce_loss + segmap_g_reg_loss
 
-        g_adv_loss = self.adv_weight * generator_loss(self.gan_type, fake_logit)
-        g_kl_loss = self.kl_weight * kl_loss(x_mean, x_var)
-        g_vgg_loss = self.vgg_weight * VGGLoss()(self.real_x, fake_x)
-        g_feature_loss = self.feature_weight * feature_loss(real_logit, fake_logit)
-        g_reg_loss = regularization_loss('generator') + regularization_loss('encoder')
+        ###GGG###g_adv_loss = self.adv_weight * generator_loss(self.gan_type, fake_logit)
+        ###GGG###g_kl_loss = self.kl_weight * kl_loss(x_mean, x_var)
+        ###GGG###g_vgg_loss = self.vgg_weight * VGGLoss()(self.real_x, fake_x)
+        ###GGG###g_feature_loss = self.feature_weight * feature_loss(real_logit, fake_logit)
+        ###GGG###g_reg_loss = regularization_loss('generator') + regularization_loss('encoder')
 
-        d_adv_loss = self.adv_weight * (discriminator_loss(self.gan_type, real_logit, fake_logit) + GP)
-        d_reg_loss = regularization_loss('discriminator')
+        ###GGG###d_adv_loss = self.adv_weight * (discriminator_loss(self.gan_type, real_logit, fake_logit) + GP)
+        ###GGG###d_reg_loss = regularization_loss('discriminator')
 
-        self.g_loss = g_adv_loss + g_kl_loss + g_vgg_loss + g_feature_loss + g_reg_loss
-        self.d_loss = d_adv_loss + d_reg_loss
+        ###GGG###self.g_loss = g_adv_loss + g_kl_loss + g_vgg_loss + g_feature_loss + g_reg_loss
+        ###GGG###self.d_loss = d_adv_loss + d_reg_loss
 
         """ Result Image """
-        self.fake_x_segmap = fake_x_segmap
-        self.fake_x = fake_x
-        self.random_fake_x_segmap, _, _, _ = self.image_translate_segmap(random_layout=True, reuse=True)
-        self.random_fake_x, _, _ = self.image_translate(segmap_img=self.random_fake_x_segmap, random_style=True, reuse=True)
+        self.fake_x_segmap = tf.distributions.Categorical(logits=fake_x_segmap_logits).sample()
+        #self.fake_x = fake_x
+        random_fake_x_segmap_logits, _, _ = self.image_translate_segmap(random_layout=True, reuse=True)
+        self.random_fake_x_segmap = tf.distributions.Categorical(logits=random_fake_x_segmap_logits).sample()
+        #self.random_fake_x, _, _ = self.image_translate(segmap_img=self.random_fake_x_segmap, random_style=True, reuse=True)
 
         """ Test """
         self.test_segmap_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, len(img_class.color_value_dict)])
-        self.random_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, random_style=True, reuse=True)
+        #self.random_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, random_style=True, reuse=True)
 
         self.test_guide_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, self.img_ch])
-        self.guide_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, x_img=self.test_guide_image, reuse=True)
+        #self.guide_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, x_img=self.test_guide_image, reuse=True)
 
 
         """ Training """
         t_vars = tf.trainable_variables()
         segmap_G_vars = [var for var in t_vars if 'encoder_layout' in var.name or 'generator_segmap' in var.name]
-        G_vars = [var for var in t_vars if 'encoder' in var.name or 'generator' in var.name]
-        D_vars = [var for var in t_vars if 'discriminator' in var.name]
+        ###GGG###G_vars = [var for var in t_vars if 'encoder' in var.name or 'generator' in var.name]
+        ###GGG###D_vars = [var for var in t_vars if 'discriminator' in var.name]
 
         if self.TTUR :
             beta1 = 0.0
@@ -487,28 +488,28 @@ class SPADE(object):
             d_lr = self.lr
 
         self.segmap_G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.segmap_g_loss, var_list=segmap_G_vars)
-        self.G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_loss, var_list=G_vars)
-        self.D_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars)
+        ###GGG###self.G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_loss, var_list=G_vars)
+        ###GGG###self.D_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars)
 
         """" Summary """
         self.summary_segmap_g_loss = tf.summary.scalar("segmap_g_loss", self.segmap_g_loss)
-        self.summary_g_loss = tf.summary.scalar("g_loss", self.g_loss)
-        self.summary_d_loss = tf.summary.scalar("d_loss", self.d_loss)
+        ###GGG###self.summary_g_loss = tf.summary.scalar("g_loss", self.g_loss)
+        ###GGG###self.summary_d_loss = tf.summary.scalar("d_loss", self.d_loss)
 
         self.summary_segmap_g_kl_loss = tf.summary.scalar("segmap_g_kl_loss", segmap_g_kl_loss)
         self.summary_segmap_g_ce_loss = tf.summary.scalar("segmap_g_ce_loss", segmap_g_ce_loss)
-        self.summary_g_adv_loss = tf.summary.scalar("g_adv_loss", g_adv_loss)
-        self.summary_g_kl_loss = tf.summary.scalar("g_kl_loss", g_kl_loss)
-        self.summary_g_vgg_loss = tf.summary.scalar("g_vgg_loss", g_vgg_loss)
-        self.summary_g_feature_loss = tf.summary.scalar("g_feature_loss", g_feature_loss)
+        ###GGG###self.summary_g_adv_loss = tf.summary.scalar("g_adv_loss", g_adv_loss)
+        ###GGG###self.summary_g_kl_loss = tf.summary.scalar("g_kl_loss", g_kl_loss)
+        ###GGG###self.summary_g_vgg_loss = tf.summary.scalar("g_vgg_loss", g_vgg_loss)
+        ###GGG###self.summary_g_feature_loss = tf.summary.scalar("g_feature_loss", g_feature_loss)
 
         segmap_g_summary_list = [self.summary_segmap_g_loss, self.summary_segmap_g_kl_loss, self.summary_segmap_g_ce_loss]
-        g_summary_list = [self.summary_g_loss, self.summary_g_adv_loss, self.summary_g_kl_loss, self.summary_g_vgg_loss, self.summary_g_feature_loss]
-        d_summary_list = [self.summary_d_loss]
+        ###GGG###g_summary_list = [self.summary_g_loss, self.summary_g_adv_loss, self.summary_g_kl_loss, self.summary_g_vgg_loss, self.summary_g_feature_loss]
+        ###GGG###d_summary_list = [self.summary_d_loss]
 
         self.segmap_G_loss = tf.summary.merge(segmap_g_summary_list)
-        self.G_loss = tf.summary.merge(g_summary_list)
-        self.D_loss = tf.summary.merge(d_summary_list)
+        ###GGG###self.G_loss = tf.summary.merge(g_summary_list)
+        ###GGG###self.D_loss = tf.summary.merge(d_summary_list)
 
     def train(self):
         # initialize all variables
@@ -535,7 +536,8 @@ class SPADE(object):
 
         # loop for epoch
         start_time = time.time()
-        past_g_loss = -1.
+        past_segmap_g_loss = -1.
+        ###GGG###past_g_loss = -1.
         lr = self.init_lr
 
         for epoch in range(start_epoch, self.epoch):
@@ -548,27 +550,27 @@ class SPADE(object):
                 }
 
                 # Update D
-                _, d_loss, summary_str = self.sess.run([self.D_optim, self.d_loss, self.D_loss], feed_dict=train_feed_dict)
-                self.writer.add_summary(summary_str, counter)
+                ###GGG###_, d_loss, summary_str = self.sess.run([self.D_optim, self.d_loss, self.D_loss], feed_dict=train_feed_dict)
+                ###GGG###self.writer.add_summary(summary_str, counter)
 
                 # Update G
                 segmap_g_loss = None
-                g_loss = None
+                ###GGG###g_loss = None
                 if (counter - 1) % self.n_critic == 0:
                     real_x_images, real_x_segmap, fake_x_segmap, random_fake_x_segmap, _, segmap_g_loss, segmap_summary_str = self.sess.run(
                         [self.real_x, self.real_x_segmap, self.fake_x_segmap, self.random_fake_x_segmap,
                          self.segmap_G_optim,
-                         self.segmap_g_loss, self.segmap_G_loss], feed_dict=train_feed_dict)
+                         self.segmap_g_loss, self.segmap_G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
-                    real_x_images, real_x_segmap, fake_x_images, fake_x_segmap, random_fake_x_images, random_fake_x_segmap, _, g_loss, summary_str = self.sess.run(
-                        [self.real_x, self.real_x_segmap, self.fake_x, self.fake_x_segmap, self.random_fake_x, self.random_fake_x_segmap,
-                         self.G_optim,
-                         self.g_loss, self.G_loss], feed_dict=train_feed_dict)
+                    ###GGG###real_x_images, real_x_segmap, fake_x_images, fake_x_segmap, random_fake_x_images, random_fake_x_segmap, _, g_loss, summary_str = self.sess.run(
+                    ###GGG###    [self.real_x, self.real_x_segmap, self.fake_x, self.fake_x_segmap, self.random_fake_x, self.random_fake_x_segmap,
+                    ###GGG###     self.G_optim,
+                    ###GGG###     self.g_loss, self.G_loss], feed_dict=train_feed_dict)
 
                     self.writer.add_summary(segmap_summary_str, counter)
-                    self.writer.add_summary(summary_str, counter)
+                    ###GGG###self.writer.add_summary(summary_str, counter)
                     past_segmap_g_loss = segmap_g_loss
-                    past_g_loss = g_loss
+                    ###GGG###past_g_loss = g_loss
 
                 # display training status
                 counter += 1
@@ -576,30 +578,31 @@ class SPADE(object):
                     segmap_g_loss = past_segmap_g_loss
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f segmap_g_loss: %.8f" % (
                     epoch, idx, self.iteration, time.time() - start_time, segmap_g_loss))
-                if g_loss == None:
-                    g_loss = past_g_loss
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f, g_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, d_loss, g_loss))
+                ###GGG###if g_loss == None:
+                ###GGG###    g_loss = past_g_loss
+                ###GGG###print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f, g_loss: %.8f" % (
+                ###GGG###    epoch, idx, self.iteration, time.time() - start_time, d_loss, g_loss))
+                sys.stdout.flush()
 
                 if np.mod(idx + 1, self.print_freq) == 0:
 
                     save_images(real_x_images, [self.batch_size, 1],
-                               './{}/real_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
+                               './{}/image_real_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
                     save_images(real_x_segmap, [self.batch_size, 1],
-                                './{}/real_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                                './{}/segmap_real_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
-                    save_images(fake_x_images, [self.batch_size, 1],
-                                './{}/fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
+                    #save_images(fake_x_images, [self.batch_size, 1],
+                    #            './{}/image_fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-                    save_segmaps(np.argmax(fake_x_segmap,axis=-1), self.color_value_dict, [self.batch_size, 1],
-                                './{}/fake_segmap{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
+                    save_segmaps(fake_x_segmap, self.color_value_dict, [self.batch_size, 1],
+                                './{}/segmap_fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-                    save_images(random_fake_x_images, [self.batch_size, 1],
-                                './{}/random_fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                    #save_images(random_fake_x_images, [self.batch_size, 1],
+                    #            './{}/random_image_fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
-                    save_segmaps(np.argmax(random_fake_x_segmap,axis=1), self.color_value_dict, [self.batch_size, 1],
-                                './{}/random_fake_segmap{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                    save_segmaps(random_fake_x_segmap, self.color_value_dict, [self.batch_size, 1],
+                                './{}/random_segmap_fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
                 if np.mod(counter - 1, self.save_freq) == 0:
                     self.save(self.checkpoint_dir, counter)
@@ -628,7 +631,7 @@ class SPADE(object):
             TTUR = ''
 
 
-        return "{}_dataset={}:gan{}:n_dis={}:n_critic={}:adv_weight={}:vgg_weight={}:feature_weight={}:kl_weight={}:{}{}:segmap_ch={}:segmap_num_upsampling_layers={}:ch={}:num_upsampling_layers={}".format(self.model_name, self.dataset_name,
+        return "{}_dataset={}__gan{}__n_dis={}__n_critic={}__adv_weight={}__vgg_weight={}__feature_weight={}__kl_weight={}__{}{}__segmap_ch={}__segmap_num_upsampling_layers={}__ch={}__num_upsampling_layers={}".format(self.model_name, self.dataset_name,
                                                                    self.gan_type, n_dis, self.n_critic,
                                                                    self.adv_weight, self.vgg_weight, self.feature_weight,
                                                                    self.kl_weight,

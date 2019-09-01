@@ -207,10 +207,14 @@ def adain(context, x_init, channels, use_bias=True, sn=False, scope='adain'):
     with tf.variable_scope(scope) :
         x = param_free_norm(x_init)
 
-        _, x_h, x_w, _ = x_init.get_shape().as_list()
+        x_b, x_h, x_w, _ = x_init.get_shape().as_list()
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
+
+        context_shape = [x_b, 1, 1, channels]
+        context_gamma = tf.reshape(context_gamma, context_shape)
+        context_beta = tf.reshape(context_beta, context_shape)
 
         x = x * (1 + context_gamma) + context_beta
 
@@ -268,8 +272,8 @@ def param_free_norm(x, epsilon=1e-5) :
 # Sampling
 ##################################################################################
 
-def resize_256(x) :
-    return tf.image.resize_bilinear(x, size=[256, 256])
+def resize(x,height=256, width=256) :
+    return tf.image.resize_bilinear(x, size=[height, width])
 
 def up_sample(x, scale_factor=2):
     _, h, w, _ = x.get_shape().as_list()
