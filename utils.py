@@ -66,9 +66,9 @@ class Image_data:
 
     def preprocess(self):
 
-        self.image = glob(self.img_dataset_path + '/*.*')
-        self.segmap = glob(self.segmap_dataset_path + '/*.*')
-        self.segmap_test = glob(self.segmap_test_dataset_path + '/*.*')
+        self.image = sorted(glob(self.img_dataset_path + '/*.*'))
+        self.segmap = sorted(glob(self.segmap_dataset_path + '/*.*'))
+        self.segmap_test = sorted(glob(self.segmap_test_dataset_path + '/*.*'))
         segmap_label_path = os.path.join(self.dataset_path, 'segmap_label.txt')
 
         if os.path.exists(segmap_label_path) :

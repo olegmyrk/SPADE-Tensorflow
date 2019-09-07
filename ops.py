@@ -207,7 +207,14 @@ def adain(context, x_init, channels, use_bias=True, sn=False, scope='adain'):
     with tf.variable_scope(scope) :
         x = param_free_norm(x_init)
 
-        x_b, x_h, x_w, _ = x_init.get_shape().as_list()
+        x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
+
+        gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+
+        x = x * (1 + gamma) + beta
+
+        return x
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')

@@ -24,6 +24,9 @@ def parse_args():
 
     parser.add_argument('--num_style', type=int, default=3, help='number of styles to sample')
     parser.add_argument('--guide_img', type=str, default='guide.jpg', help='Style guided image translation')
+
+    parser.add_argument('--unet_ce_weight', type=int, default=1.0, help='Weight about unet cross entropy loss')
+    parser.add_argument('--unet_kl_weight', type=float, default=1.0, help='Weight about unet kl-divergence')
     
     parser.add_argument('--segmap_ce_weight', type=int, default=1.0, help='Weight about segmap cross entropy loss')
     parser.add_argument('--segmap_kl_weight', type=float, default=1.0, help='Weight about segmap kl-divergence')
@@ -32,6 +35,7 @@ def parse_args():
     parser.add_argument('--adv_weight', type=int, default=1, help='Weight about GAN')
     parser.add_argument('--vgg_weight', type=int, default=10, help='Weight about perceptual loss')
     parser.add_argument('--feature_weight', type=int, default=10, help='Weight about discriminator feature matching loss')
+    parser.add_argument('--ce_weight', type=int, default=1.0, help='Weight about cross entropy loss')
     parser.add_argument('--kl_weight', type=float, default=0.05, help='Weight about kl-divergence')
 
     parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan-gp / wgan-lp / dragan')
