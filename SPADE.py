@@ -511,6 +511,7 @@ class SPADE(object):
         self.unet_G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.unet_g_loss, var_list=unet_G_vars)
         self.segmap_G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.segmap_g_loss, var_list=segmap_G_vars)
         ###GGG###self.G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_loss, var_list=G_vars)
+        ###UNET+SEGVAE+IMGVAE###self.G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.unet_g_loss+self.segmap_g_loss+self.g_loss, var_list=unet_G_vars+segmap_G_vars+G_vars)
         ###GAN###self.D_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars)
 
         """" Summary """
@@ -589,15 +590,15 @@ class SPADE(object):
                 segmap_g_loss = None
                 ###GGG###g_loss = None
                 if (counter - 1) % self.n_critic == 0:
-                    #real_x_images, real_x_segmap, unet_x_segmap, _, unet_g_loss, unet_summary_str = self.sess.run(
-                    #    [self.real_x, self.real_x_segmap, self.unet_x_segmap,
-                    #     self.unet_G_optim,
-                    #     self.unet_g_loss, self.unet_G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+                    ###UNET###real_x_images, real_x_segmap, unet_x_segmap, _, unet_g_loss, unet_summary_str = self.sess.run(
+                    ###UNET###    [self.real_x, self.real_x_segmap, self.unet_x_segmap,
+                    ###UNET###     self.unet_G_optim,
+                    ###UNET###     self.unet_g_loss, self.unet_G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
-                    #real_x_images, real_x_segmap, fake_x_segmap, random_fake_x_segmap, _, segmap_g_loss, segmap_summary_str = self.sess.run(
-                    #    [self.real_x, self.real_x_segmap, self.fake_x_segmap, self.random_fake_x_segmap,
-                    #     self.segmap_G_optim,
-                    #     self.segmap_g_loss, self.segmap_G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+                    ###SEGVAE###real_x_images, real_x_segmap, fake_x_segmap, random_fake_x_segmap, _, segmap_g_loss, segmap_summary_str = self.sess.run(
+                    ###SEGVAE###    [self.real_x, self.real_x_segmap, self.fake_x_segmap, self.random_fake_x_segmap,
+                    ###SEGVAE###     self.segmap_G_optim,
+                    ###SEGVAE###     self.segmap_g_loss, self.segmap_G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
                     real_x_images, real_x_segmap, unet_x_segmap, fake_x_segmap, random_fake_x_segmap, _, unet_g_loss, unet_summary_str, _, segmap_g_loss, segmap_summary_str = self.sess.run(
                         [self.real_x, self.real_x_segmap, self.unet_x_segmap, self.fake_x_segmap, self.random_fake_x_segmap,
@@ -617,6 +618,16 @@ class SPADE(object):
                     ###GGG###     self.segmap_g_loss, self.segmap_G_loss,
                     ###GGG###     self.G_optim,
                     ###GGG###     self.g_loss, self.G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+
+                    ###UNET+SEGVAE+IMGVAE###real_x_images, real_x_segmap, fake_x_images, unet_x_segmap, fake_x_segmap, random_fake_x_images, random_fake_x_segmap, _, unet_g_loss, unet_summary_str, segmap_g_loss, segmap_summary_str, g_loss, summary_str = self.sess.run(
+                    ###UNET+SEGVAE+IMGVAE###    [self.real_x, self.real_x_segmap, self.fake_x, self.unet_x_segmap, self.fake_x_segmap, self.random_fake_x, self.random_fake_x_segmap,
+                    ###UNET+SEGVAE+IMGVAE###     self.G_optim,
+                    ###UNET+SEGVAE+IMGVAE###     #self.unet_G_optim,
+                    ###UNET+SEGVAE+IMGVAE###     self.unet_g_loss, self.unet_G_loss,
+                    ###UNET+SEGVAE+IMGVAE###     #self.segmap_G_optim,
+                    ###UNET+SEGVAE+IMGVAE###     self.segmap_g_loss, self.segmap_G_loss,
+                    ###UNET+SEGVAE+IMGVAE###     #self.G_optim,
+                    ###UNET+SEGVAE+IMGVAE###     self.g_loss, self.G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
  
                     self.writer.add_summary(unet_summary_str, counter)
                     self.writer.add_summary(segmap_summary_str, counter)
