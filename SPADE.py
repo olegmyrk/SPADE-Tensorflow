@@ -167,6 +167,7 @@ class SPADE(object):
             return mean, var
 
     def generator_segmap(self, x_mean, x_var, random_layout=False, reuse=False, scope="generator_segmap"):
+        context_depth = 8
         channel = self.segmap_ch * 4 * 4
         batch_size = self.batch_size
         with tf.variable_scope(scope, reuse=reuse):
@@ -175,7 +176,9 @@ class SPADE(object):
             else :
                 x = z_sample(x_mean, x_var)
 
-            context = tf.zeros_like(x) 
+            context = x
+            for i in range(context_depth):
+                context = fully_connected(context, context.get_shape()[-1], use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
 
             if self.segmap_num_upsampling_layers == 'less':
                 num_up_layers = 4
