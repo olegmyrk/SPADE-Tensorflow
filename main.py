@@ -30,6 +30,7 @@ def parse_args():
     
     parser.add_argument('--segmap_ce_weight', type=int, default=1.0, help='Weight about segmap cross entropy loss')
     parser.add_argument('--segmap_kl_weight', type=float, default=1.0, help='Weight about segmap kl-divergence')
+    parser.add_argument('--segmap_adv_weight', type=int, default=1, help='Weight about segmap GAN')
 
     parser.add_argument('--ld', type=float, default=10.0, help='The gradient penalty lambda')
     parser.add_argument('--adv_weight', type=int, default=1, help='Weight about GAN')
@@ -38,7 +39,7 @@ def parse_args():
     parser.add_argument('--ce_weight', type=int, default=1.0, help='Weight about cross entropy loss')
     parser.add_argument('--kl_weight', type=float, default=0.05, help='Weight about kl-divergence')
 
-    parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan-gp / wgan-lp / dragan')
+    parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan / wgan-gp / wgan-lp / dragan')
     parser.add_argument('--segmap_ch', type=int, default=64, help='base segmap channel number per layer')
     parser.add_argument('--ch', type=int, default=64, help='base channel number per layer')
 

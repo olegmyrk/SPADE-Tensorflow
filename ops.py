@@ -184,6 +184,21 @@ def flatten(x):
 # Residual-block
 ##################################################################################
 
+def resblock(context, x_init, channels, use_bias=True, sn=False, scope='resblock'):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.variable_scope(scope) :
+        x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
+
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
+
+        if channel_in != channels :
+            x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
+
+        return x + x_init
+
 def adain_resblock(context, x_init, channels, use_bias=True, sn=False, scope='adain_resblock'):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
