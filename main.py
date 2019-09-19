@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--segmap_ce_weight', type=int, default=1.0, help='Weight about segmap cross entropy loss')
     parser.add_argument('--segmap_kl_weight', type=float, default=1.0, help='Weight about segmap kl-divergence')
     parser.add_argument('--segmap_adv_weight', type=int, default=1, help='Weight about segmap GAN')
+    parser.add_argument('--segmap_feature_weight', type=int, default=10, help='Weight about segmap discriminator feature matching loss')
 
     parser.add_argument('--ld', type=float, default=10.0, help='The gradient penalty lambda')
     parser.add_argument('--adv_weight', type=int, default=1, help='Weight about GAN')
