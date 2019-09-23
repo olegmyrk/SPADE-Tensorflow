@@ -335,20 +335,26 @@ class SPADE(object):
 
             x = lrelu(x, 0.2)
 
-            x = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_z')
-            print(x)
-            x = lrelu(x, 0.2)
-            print(x)
+            x0 = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_x0')
+            print(x0)
+            x0 = lrelu(x0, 0.2)
+            print(x0)
 
-            z0 = fully_connected(x, 1, scope='fixed_code')
+            #z0 = fully_connected(x0, 1, scope='fixed_code')
+            fixed_segmap_code = tf.get_variable("fixed_segmap_code", [channel // 2], tf.float32, initializer=weight_init, regularizer=weight_regularizer_fully)
+            #z0 = tf.reduce_mean(x0*fixed_segmap_code, 1, keep_dims=True)
+            z0 = tf.reduce_mean(tf.math.square(x0-fixed_segmap_code), 1, keep_dims=True)
             print(z0)
 
             if segmap_code is None:
                 z = z0
             else:
-                #z1 = tf.reduce_mean(x*tf.math.l2_normalize(segmap_code), 1)
-                #z1 = -tf.reduce_sum((x-segmap_code)**2, 1, keep_dims=True)
-                z1 = tf.reduce_mean(x*segmap_code, 1, keep_dims=True, name='code')
+                x1 = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_x1')
+                print(x1)
+                x1 = lrelu(x1, 0.2)
+                print(x1)
+                #z1 = tf.reduce_mean(x1*segmap_code, 1, keep_dims=True)
+                z1 = tf.reduce_mean(tf.math.square(x1-segmap_code), 1, keep_dims=True)
                 print(z1)
                 z = z0 + z1
             print(z)
@@ -579,7 +585,7 @@ class SPADE(object):
         #self.segmap_g_loss = segmap_g_adv_loss + segmap_g_ce_loss + segmap_g_reg_loss + segmap_e_kl_loss + segmap_e_reg_loss
         self.segmap_g_loss = segmap_g_adv_loss + segmap_g_reg_loss + segmap_g_ce_loss + segmap_g_feature_loss
         #self.segmap_d_loss = segmap_d_adv_loss + segmap_d_reg_loss + segmap_e_kl_loss + segmap_e_reg_loss
-        self.segmap_e_loss = 0*segmap_d_adv_loss + segmap_g_ce_loss + segmap_g_feature_loss + segmap_e_kl_loss + segmap_e_reg_loss
+        self.segmap_e_loss = segmap_d_adv_loss + segmap_g_ce_loss + segmap_g_feature_loss + segmap_e_kl_loss + segmap_e_reg_loss
         self.segmap_d_loss = segmap_d_adv_loss + segmap_d_reg_loss - segmap_g_feature_loss
 
         ###GAN###g_adv_loss = self.adv_weight * generator_loss(self.gan_type, fake_logit)
