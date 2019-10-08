@@ -199,6 +199,38 @@ def resblock(context, x_init, channels, use_bias=True, sn=False, scope='resblock
 
         return x + x_init
 
+def constin_resblock(x_init, channels, use_bias=True, sn=False, scope='constin_resblock'):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.variable_scope(scope) :
+        x = constin(x_init, channel_in, use_bias=use_bias, sn=False, scope='constin_1')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
+
+        x = constin(x, channels=channel_middle, use_bias=use_bias, sn=False, scope='constin_2')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
+
+        if channel_in != channels :
+            x_init = constin(x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='constin_shortcut')
+            x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
+
+        return x + x_init
+
+def constin(x_init, channels, use_bias=True, sn=False, scope='adain'):
+    with tf.variable_scope(scope) :
+        x = param_free_norm(x_init)
+
+        x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
+
+        gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+
+        x = x * (1 + gamma) + beta
+
+        return x
+
 def adain_resblock(context, x_init, channels, use_bias=True, sn=False, scope='adain_resblock'):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
@@ -224,12 +256,12 @@ def adain(context, x_init, channels, use_bias=True, sn=False, scope='adain'):
 
         x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
 
-        gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
-        beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        #gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        #beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
 
-        x = x * (1 + gamma) + beta
+        #x = x * (1 + gamma) + beta
 
-        return x
+        #return x
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
@@ -375,11 +407,20 @@ def spectral_norm(w, iteration=1):
 # Loss function
 ##################################################################################
 
-def L1_loss(x, y):
-    loss = tf.reduce_mean(tf.abs(x - y))
+def L2_loss(x, y):
+    loss = tf.reduce_mean(tf.reduce_sum((x - y)**2, -1))
 
     return loss
 
+def L1_loss(x, y):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.abs(x - y), -1))
+
+    return loss
+
+def L1_mean_loss(x, y):
+    loss = tf.reduce_mean(tf.reduce_mean(tf.abs(x - y), -1))
+
+    return loss
 
 def discriminator_loss(loss_func, real, fake):
     loss = []
@@ -441,7 +482,7 @@ def feature_loss(real, fake) :
     for i in range(len(fake)) :
         intermediate_loss = 0
         for j in range(len(fake[i]) - 1) :
-            intermediate_loss += L1_loss(real[i][j], fake[i][j])
+            intermediate_loss += L1_mean_loss(real[i][j], fake[i][j])
         loss.append(intermediate_loss)
 
     return tf.reduce_mean(loss)
@@ -452,11 +493,11 @@ def z_sample(mean, logvar):
     return mean + tf.exp(logvar * 0.5) * eps
 
 def ce_loss(p,q_logits):
-    return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=p, logits=q_logits))
+    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=p, logits=q_logits))
 
 def kl_loss(mean, logvar):
     # shape : [batch_size, channel]
-    loss = 0.5 * tf.reduce_sum(tf.square(mean) + tf.exp(logvar) - 1 - logvar)
+    loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(mean) + tf.exp(logvar) - 1 - logvar, -1))
     # loss = tf.reduce_mean(loss)
 
     return loss

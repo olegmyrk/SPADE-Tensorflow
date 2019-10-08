@@ -1,6 +1,6 @@
 import tensorflow as tf
 from keras.applications.vgg19 import preprocess_input
-from ops import L1_loss
+from ops import L1_mean_loss
 
 class VGGLoss(tf.keras.Model):
     def __init__(self):
@@ -17,7 +17,7 @@ class VGGLoss(tf.keras.Model):
 
         for i in range(len(x_vgg)):
             y_vgg_detach = tf.stop_gradient(y_vgg[i])
-            loss += self.layer_weights[i] * L1_loss(x_vgg[i], y_vgg_detach)
+            loss += self.layer_weights[i] * L1_mean_loss(x_vgg[i], y_vgg_detach)
 
         return loss
 
