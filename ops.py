@@ -199,28 +199,31 @@ def resblock(context, x_init, channels, use_bias=True, sn=False, scope='resblock
 
         return x + x_init
 
-def constin_resblock(x_init, channels, use_bias=True, sn=False, scope='constin_resblock'):
+def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, scope='constin_resblock'):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
     with tf.variable_scope(scope) :
-        x = constin(x_init, channel_in, use_bias=use_bias, sn=False, scope='constin_1')
+        x = constin(x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='constin_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        x = constin(x, channels=channel_middle, use_bias=use_bias, sn=False, scope='constin_2')
+        x = constin(x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='constin_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            x_init = constin(x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='constin_shortcut')
+            x_init = constin(x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='constin_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
 
-def constin(x_init, channels, use_bias=True, sn=False, scope='adain'):
+def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope='adain'):
     with tf.variable_scope(scope) :
-        x = param_free_norm(x_init)
+        if norm:
+            x = param_free_norm(x_init)
+        else:
+            x = x_init
 
         x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
 
@@ -231,28 +234,31 @@ def constin(x_init, channels, use_bias=True, sn=False, scope='adain'):
 
         return x
 
-def adain_resblock(context, x_init, channels, use_bias=True, sn=False, scope='adain_resblock'):
+def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True, scope='adain_resblock'):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
     with tf.variable_scope(scope) :
-        x = adain(context, x_init, channel_in, use_bias=use_bias, sn=False, scope='adain_1')
+        x = adain(context, x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='adain_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='adain_2')
+        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='adain_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='adain_shortcut')
+            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='adain_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
 
-def adain(context, x_init, channels, use_bias=True, sn=False, scope='adain'):
+def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope='adain'):
     with tf.variable_scope(scope) :
-        x = param_free_norm(x_init)
+        if norm:
+            x = param_free_norm(x_init)
+        else:
+            x = x_init
 
         x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
 
@@ -313,6 +319,55 @@ def spade(segmap, x_init, channels, use_bias=True, sn=False, scope='spade') :
         segmap_beta = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_beta')
 
         x = x * (1 + segmap_gamma) + segmap_beta
+
+        return x
+
+def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, scope='spade_resblock'):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.variable_scope(scope) :
+        x = cspade(context, segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='spade_1')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
+
+        x = cspade(context, segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='spade_2')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
+
+        if channel_in != channels :
+            x_init = cspade(context, segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='spade_shortcut')
+            x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
+
+        return x + x_init
+
+
+def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope='spade') :
+    with tf.variable_scope(scope) :
+        x = param_free_norm(x_init)
+
+        x_b, x_h, x_w, _ = x_init.get_shape().as_list()
+        _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
+
+        factor_h = segmap_h // x_h  # 256 // 4 = 64
+        factor_w = segmap_w // x_w
+
+        context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
+        context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
+
+        context_shape = [x_b, 1, 1, channels]
+        context_gamma = tf.reshape(context_gamma, context_shape)
+        context_beta = tf.reshape(context_beta, context_shape)
+
+        segmap_down = down_sample(segmap, factor_h, factor_w)
+
+        segmap_down = conv(segmap_down, channels=128, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_128')
+        segmap_down = relu(segmap_down)
+
+        segmap_gamma = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_gamma')
+        segmap_beta = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_beta')
+
+        x = x * (1 + (context_gamma + segmap_gamma)) + (context_beta + segmap_beta)
 
         return x
 
@@ -474,6 +529,12 @@ def generator_loss(loss_func, fake):
         loss.append(fake_loss)
 
     return tf.reduce_mean(loss)
+
+def feature_stop_gradient(features):
+    result = []
+    for l in features:
+        result.append(list([tf.stop_gradient(t) for t in l]))
+    return result
 
 def feature_loss(real, fake) :
 
