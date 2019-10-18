@@ -196,7 +196,7 @@ class SPADE(object):
     def generator_segmap(self, segmap_code, z=None, reuse=False, scope="generator_segmap"):
         context = segmap_code
 
-        context_depth = 1
+        context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.segmap_ch * 4 * 4
         batch_size = self.batch_size
@@ -264,16 +264,16 @@ class SPADE(object):
     def generator_spatial_segmap(self, segmap_code, segmap, z, reuse=False, scope="generator_spatial_segmap"):
         context = segmap_code
 
-        context_depth = 1
+        context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.segmap_ch * 4 * 4
         batch_size = self.batch_size
         _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
         with tf.variable_scope(scope, reuse=reuse):
 
-            for i in range(context_depth):
-                context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
-                context = lrelu(context, 0.2)
+            #for i in range(context_depth):
+            #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
+            #    context = lrelu(context, 0.2)
             
             x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=self.sn, scope='linear_noise')
 
