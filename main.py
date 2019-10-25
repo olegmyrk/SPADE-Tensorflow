@@ -28,12 +28,6 @@ def parse_args():
     parser.add_argument('--unet_ce_weight', type=int, default=1.0, help='Weight about unet cross entropy loss')
     parser.add_argument('--unet_kl_weight', type=float, default=1.0, help='Weight about unet kl-divergence')
     
-    parser.add_argument('--segmap_ce_weight', type=float, default=1.0, help='Weight about segmap cross entropy loss')
-    parser.add_argument('--segmap_vgg_weight', type=float, default=1.0, help='Weight about segmap perceptual loss')
-    parser.add_argument('--segmap_kl_weight', type=float, default=1.0, help='Weight about segmap kl-divergence')
-    parser.add_argument('--segmap_adv_weight', type=float, default=1.0, help='Weight about segmap GAN')
-    parser.add_argument('--segmap_feature_weight', type=float, default=1.0, help='Weight about segmap discriminator feature matching loss')
-
     parser.add_argument('--ld', type=float, default=10.0, help='The gradient penalty lambda')
     parser.add_argument('--adv_weight', type=float, default=1, help='Weight about GAN')
     parser.add_argument('--vgg_weight', type=float, default=1.0, help='Weight about perceptual loss')
@@ -43,7 +37,6 @@ def parse_args():
 
     parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan / wgan-gp / wgan-lp / dragan')
     parser.add_argument('--code_gan_type', type=str, default='hinge', help='code gan / lsgan / hinge / wgan / wgan-gp / wgan-lp / dragan')
-    parser.add_argument('--segmap_ch', type=int, default=64, help='base segmap channel number per layer')
     parser.add_argument('--ch', type=int, default=64, help='base channel number per layer')
 
     parser.add_argument('--n_dis', type=int, default=4, help='The number of discriminator layer')
@@ -55,11 +48,6 @@ def parse_args():
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--beta2', type=float, default=0.999, help='momentum term of adam')
 
-    parser.add_argument('--segmap_num_upsampling_layers', type=str, default='more',
-                        choices=('less', 'normal', 'more', 'most'),
-                        help="If 'more', adds upsampling layer between the two middle resnet blocks. "
-                             "If 'most', also add one more upsampling + resnet layer at the end of the generator")
-
     parser.add_argument('--num_upsampling_layers', type=str, default='more',
                         choices=('less', 'normal', 'more', 'most'),
                         help="If 'more', adds upsampling layer between the two middle resnet blocks. "
@@ -67,8 +55,8 @@ def parse_args():
 
     parser.add_argument('--img_height', type=int, default=256, help='The height size of image')
     parser.add_argument('--img_width', type=int, default=256, help='The width size of image ')
-    parser.add_argument('--img_ch', type=int, default=3, help='The size of image channel')
     parser.add_argument('--segmap_img_ch', type=int, default=3, help='The size of segmap image channel')
+    parser.add_argument('--img_ch', type=int, default=3, help='The size of image channel')
     parser.add_argument('--augment_flag', type=str2bool, default=True, help='Image augmentation use or not')
 
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoint',

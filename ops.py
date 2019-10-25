@@ -1,3 +1,4 @@
+import math
 import tensorflow as tf
 import tensorflow.contrib as tf_contrib
 from utils import pytorch_xavier_weight_factor, pytorch_kaiming_weight_factor
@@ -467,6 +468,11 @@ def L2_loss(x, y):
 
     return loss
 
+def L2_mean_loss(x, y):
+    loss = tf.reduce_mean(tf.reduce_mean((x - y)**2, -1))
+
+    return loss
+
 def L1_loss(x, y):
     loss = tf.reduce_mean(tf.reduce_sum(tf.abs(x - y), -1))
 
@@ -558,7 +564,15 @@ def ce_loss(p,q_logits):
 
 def kl_loss(mean, logvar):
     # shape : [batch_size, channel]
-    loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(mean) + tf.exp(logvar) - 1 - logvar, -1))
+    loss = 0.5 * tf.reduce_mean(tf.reduce_mean(tf.square(mean) + tf.exp(logvar) - 1 - logvar, -1))
+    # loss = tf.reduce_mean(loss)
+
+    return loss
+
+def negent_loss(mean, logvar):
+    # shape : [batch_size, channel]
+    pi = tf.constant(math.pi)
+    loss = -0.5 * tf.reduce_mean(tf.reduce_mean(logvar, -1) + tf.math.log(2*pi) + 1)
     # loss = tf.reduce_mean(loss)
 
     return loss
