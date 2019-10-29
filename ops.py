@@ -564,15 +564,33 @@ def ce_loss(p,q_logits):
 
 def kl_loss(mean, logvar):
     # shape : [batch_size, channel]
-    loss = 0.5 * tf.reduce_mean(tf.reduce_mean(tf.square(mean) + tf.exp(logvar) - 1 - logvar, -1))
+    k = mean.get_shape()[-1]
+    loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(mean) + tf.exp(logvar) - 1 - logvar, -1)) / int(k)
+    # loss = tf.reduce_mean(loss)
+
+    return loss
+
+def kl_loss2(mean1, logvar1, mean2, logvar2):
+    # shape : [batch_size, channel]
+    k = mean1.get_shape()[-1]
+    loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(mean2-mean1)/tf.exp(logvar2) + tf.exp(logvar1-logvar2)  - 1 + (logvar2 - logvar1), -1)) / int(k)
+    # loss = tf.reduce_mean(loss)
+
+    return loss
+
+def prior_loss(x, mean, logvar):
+    k = mean.get_shape()[-1]
+    pi = tf.constant(math.pi)
+    loss = 0.5*tf.reduce_mean(tf.reduce_sum((x - mean) / tf.exp(logvar) + logvar + tf.log(2*pi), -1)) / int(k)
     # loss = tf.reduce_mean(loss)
 
     return loss
 
 def negent_loss(mean, logvar):
     # shape : [batch_size, channel]
+    k = mean.get_shape()[-1]
     pi = tf.constant(math.pi)
-    loss = -0.5 * tf.reduce_mean(tf.reduce_mean(logvar, -1) + tf.math.log(2*pi) + 1)
+    loss = -0.5 * tf.reduce_mean((tf.reduce_sum(logvar, -1) + tf.math.log(2*pi) + 1)) / int(k)
     # loss = tf.reduce_mean(loss)
 
     return loss
