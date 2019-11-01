@@ -581,7 +581,7 @@ def kl_loss2(mean1, logvar1, mean2, logvar2):
 def prior_loss(x, mean, logvar):
     k = mean.get_shape()[-1]
     pi = tf.constant(math.pi)
-    loss = 0.5*tf.reduce_mean(tf.reduce_sum((x - mean) / tf.exp(logvar) + logvar + tf.log(2*pi), -1)) / int(k)
+    loss = 0.5*tf.reduce_mean(tf.reduce_sum(tf.square(x - mean) / tf.exp(logvar) + logvar + tf.log(2*pi), -1)) / int(k)
     # loss = tf.reduce_mean(loss)
 
     return loss
@@ -590,7 +590,7 @@ def negent_loss(mean, logvar):
     # shape : [batch_size, channel]
     k = mean.get_shape()[-1]
     pi = tf.constant(math.pi)
-    loss = -0.5 * tf.reduce_mean((tf.reduce_sum(logvar, -1) + tf.math.log(2*pi) + 1)) / int(k)
+    loss = -0.5 * tf.reduce_mean(tf.reduce_sum(logvar + tf.math.log(2*pi) + 1, -1)) / int(k)
     # loss = tf.reduce_mean(loss)
 
     return loss

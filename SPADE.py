@@ -3,6 +3,9 @@ from ops import *
 from utils import *
 import time
 from tensorflow.contrib.data import prefetch_to_device, shuffle_and_repeat, map_and_batch
+import tensorflow_probability as tfp
+tfd = tfp.distributions
+tfb = tfp.bijectors
 import numpy as np
 from tqdm import tqdm
 from vgg19_keras import VGGLoss
@@ -172,6 +175,29 @@ class SPADE(object):
         var = tf.zeros([batch_size, out_channel])
         return mean, var
 
+    def prior_code_maf(self, reuse=False, scope=None):
+        batch_size = self.batch_size
+        out_channel = self.ch * 4
+        hidden_channel = self.ch * 64
+        num_bijectors=16
+
+        with tf.variable_scope(scope, reuse=reuse):
+            bijectors = []
+            for i in range(num_bijectors):
+                bijectors.append(tfb.MaskedAutoregressiveFlow(
+                  shift_and_log_scale_fn=tfb.masked_autoregressive_default_template(
+                  hidden_layers=[hidden_channel, hidden_channel], name=scope + "/masked_autoregressive_default_template_" + str(i))))
+                permutation=tf.get_variable('permutation_'+str(i), initializer=np.random.permutation(out_channel).astype("int32"), trainable=False)
+                bijectors.append(tfb.Permute(permutation))
+            flow_bijector = tfb.Chain(list(reversed(bijectors[:-1])))
+
+            base_dist = tfd.MultivariateNormalDiag(loc=tf.zeros([out_channel]), scale_diag=tf.ones([out_channel]))
+            dist = tfd.TransformedDistribution(
+                            distribution=base_dist,
+                            bijector=flow_bijector
+                        )
+        return dist
+
     def encoder_supercode(self, x, reuse=False, scope=None):
         channel = self.ch
         with tf.variable_scope(scope, reuse=reuse):
@@ -182,13 +208,6 @@ class SPADE(object):
             mean = fully_connected(x, channel*4, use_bias=True, sn=False, scope='linear_mean')
             var = fully_connected(x, channel*4, use_bias=True, sn=False, scope='linear_var')
             return mean, var
-
-    def prior_supercode(self):
-        batch_size = self.batch_size
-        out_channel = self.ch*4
-        mean = tf.zeros([batch_size, out_channel])
-        var = tf.zeros([batch_size, out_channel])
-        return mean, var
 
     def generator_code(self, x, reuse=False, scope=None):
         channel = self.ch
@@ -532,28 +551,19 @@ class SPADE(object):
         self.segmap_out_ch = len(img_class.color_value_dict)
 
         self.dataset_num = len(img_class.image)
-        self.test_dataset_num = len(img_class.segmap_test)
 
 
-        img_and_segmap = tf.data.Dataset.from_tensor_slices((img_class.image, img_class.segmap))
-        test = tf.data.Dataset.from_tensor_slices(img_class.segmap_test)
+        ctximg_and_img_and_segmap = tf.data.Dataset.from_tensor_slices((img_class.ctximage, img_class.image, img_class.segmap))
 
 
         gpu_device = '/gpu:0'
-        img_and_segmap = img_and_segmap.apply(shuffle_and_repeat(self.dataset_num)).apply(
+        ctximg_and_img_and_segmap = ctximg_and_img_and_segmap.apply(shuffle_and_repeat(self.dataset_num)).apply(
             map_and_batch(img_class.image_processing, self.batch_size, num_parallel_batches=16,
                           drop_remainder=True)).apply(prefetch_to_device(gpu_device, self.batch_size))
 
-        test = test.apply(shuffle_and_repeat(self.dataset_num)).apply(
-            map_and_batch(img_class.test_image_processing, batch_size=self.batch_size, num_parallel_batches=16,
-                          drop_remainder=True)).apply(prefetch_to_device(gpu_device, self.batch_size))
+        ctximg_and_img_and_segmap_iterator = ctximg_and_img_and_segmap.make_one_shot_iterator()
 
-
-        img_and_segmap_iterator = img_and_segmap.make_one_shot_iterator()
-        test_iterator = test.make_one_shot_iterator()
-
-        self.real_x, self.real_x_segmap, self.real_x_segmap_onehot = img_and_segmap_iterator.get_next()
-        self.real_x_test, self.real_x_segmap_test_onehot = test_iterator.get_next()
+        self.real_ctx, self.real_x, self.real_x_segmap, self.real_x_segmap_onehot = ctximg_and_img_and_segmap_iterator.get_next()
 
         self.global_step = tf.train.create_global_step()
 
@@ -561,34 +571,44 @@ class SPADE(object):
         x_det_code_mean, x_det_code_var = self.encoder_code(self.real_x, scope='encoder_det_code')
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_var)
         
-        x_det_supercode_mean, x_det_supercode_var = self.encoder_supercode(tf.stop_gradient(fake_det_x_code), scope='encoder_det_supercode-v2')
+        x_det_supercode_mean, x_det_supercode_var = self.encoder_supercode(tf.stop_gradient(fake_det_x_code), scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_var)
-        x_det_ctxcode_mean, x_det_ctxcode_var = self.encoder_code(self.real_x, scope='encoder_det_ctxcode-v2')
+        x_det_ctxcode_mean, x_det_ctxcode_var = self.encoder_code(self.real_ctx, scope='encoder_det_ctxcode')
         fake_det_x_ctxcode = z_sample(x_det_ctxcode_mean, x_det_ctxcode_var)
         fake_det_x_code_logits = self.generator_code(tf.concat([fake_det_x_supercode, fake_det_x_ctxcode],-1), scope="generator_det_code")
         
-        prior_det_supercode_mean, prior_det_supercode_var = self.encoder_code(self.real_x, scope='prior_det_code')
-        random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_var)
-        prior_det_ctxcode_mean, prior_det_ctxcode_var = self.prior_supercode()
+        #prior_det_supercode_mean, prior_det_supercode_var = self.prior_code()#self.encoder_code(self.real_x, scope='prior_det_supercode')
+        #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_var)
+        prior_det_supercode_dist = self.prior_code_maf(scope='prior_det_supercode')
+        random_det_supercode = prior_det_supercode_dist.sample(self.batch_size)
+        prior_det_ctxcode_mean, prior_det_ctxcode_var = self.prior_code()
         random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_var)
-        random_det_code = self.generator_code(tf.concat([random_det_supercode, random_det_ctxcode], -1), reuse=True, scope="generator_det_code")
+        random_det_code = self.generator_code(tf.concat([random_det_supercode, fake_det_x_ctxcode], -1), reuse=True, scope="generator_det_code")
         random_simple_det_code = z_sample(*self.prior_code())
+
+        #prior_maf_det_code_dist = self.prior_code_maf(scope='prior_maf_det_code')
+        #random_maf_det_code = prior_maf_det_code_dist.sample(self.batch_size)
         
         x_nondet_code_mean, x_nondet_code_var = self.encoder_code(self.real_x, scope='encoder_nondet_code')
         fake_nondet_x_code = z_sample(x_nondet_code_mean, x_nondet_code_var)
 
-        x_nondet_supercode_mean, x_nondet_supercode_var = self.encoder_supercode(tf.stop_gradient(fake_nondet_x_code), scope='encoder_nondet_supercode-v2')
+        x_nondet_supercode_mean, x_nondet_supercode_var = self.encoder_supercode(tf.stop_gradient(fake_nondet_x_code), scope='encoder_nondet_supercode')
         fake_nondet_x_supercode = z_sample(x_nondet_supercode_mean, x_nondet_supercode_var)
-        x_nondet_ctxcode_mean, x_nondet_ctxcode_var = self.encoder_code(self.real_x, scope='encoder_nondet_ctxcode-v2')
+        x_nondet_ctxcode_mean, x_nondet_ctxcode_var = self.encoder_code(self.real_ctx, scope='encoder_nondet_ctxcode')
         fake_nondet_x_ctxcode = z_sample(x_nondet_ctxcode_mean, x_nondet_ctxcode_var)
         fake_nondet_x_code_logits = self.generator_code(tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode],-1), scope="generator_nondet_code")
         
-        prior_nondet_supercode_mean, prior_nondet_supercode_var = self.encoder_code(self.real_x, scope='prior_nondet_code')
-        random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_var)
-        prior_nondet_ctxcode_mean, prior_nondet_ctxcode_var = self.prior_supercode()
+        #prior_nondet_supercode_mean, prior_nondet_supercode_var = self.prior_code()#self.encoder_code(self.real_x, scope='prior_nondet_supercode')
+        #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_var)
+        prior_nondet_supercode_dist = self.prior_code_maf(scope='prior_nondet_supercode')
+        random_nondet_supercode = prior_nondet_supercode_dist.sample(self.batch_size)
+        prior_nondet_ctxcode_mean, prior_nondet_ctxcode_var = self.prior_code()
         random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_var)
-        random_nondet_code = self.generator_code(tf.concat([fake_nondet_x_supercode, random_nondet_ctxcode], -1), reuse=True, scope="generator_nondet_code")
+        random_nondet_code = self.generator_code(tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode], -1), reuse=True, scope="generator_nondet_code")
         random_simple_nondet_code = z_sample(*self.prior_code())
+
+        #prior_maf_nondet_code_dist = self.prior_code_maf(scope='prior_maf_nondet_code')
+        #random_maf_nondet_code = prior_maf_nondet_code_dist.sample(self.batch_size)
 
         fake_det_x_logits = self.generator(fake_det_x_code, z=fake_det_x_code, scope="generator_det")
         
@@ -600,9 +620,9 @@ class SPADE(object):
         random_fake_det_x_logits = self.generator(random_det_code, z=random_det_code, reuse=True, scope="generator_det")
         random_fake_nondet_x_logits = self.generator_spatial(random_full_x_code, random_fake_det_x_logits, z=random_nondet_code, reuse=True, scope="generator_nondet")
 
-        random_simple_full_x_code = tf.concat([0*random_simple_nondet_code,random_simple_det_code], -1) 
-        random_simple_fake_det_x_logits = self.generator(random_simple_det_code, z=random_simple_det_code, reuse=True, scope="generator_det")
-        random_simple_fake_nondet_x_logits = self.generator_spatial(random_simple_full_x_code, random_simple_fake_det_x_logits, z=random_simple_nondet_code, reuse=True, scope="generator_nondet")
+        #random_maf_full_x_code = tf.concat([0*random_maf_nondet_code,random_maf_det_code], -1) 
+        #random_maf_fake_det_x_logits = self.generator(random_maf_det_code, z=random_maf_det_code, reuse=True, scope="generator_det")
+        #random_maf_fake_nondet_x_logits = self.generator_spatial(random_maf_full_x_code, random_maf_fake_det_x_logits, z=random_maf_nondet_code, reuse=True, scope="generator_nondet")
 
         [code_det_real_logit, code_det_real_summary], [code_det_fake_logit, code_det_fake_summary] = self.discriminate_code(real_code_img=random_simple_det_code, fake_code_img=fake_det_x_code, name='det')
         [code_nondet_real_logit, code_nondet_real_summary], [code_nondet_fake_logit, code_nondet_fake_summary] = self.discriminate_code(real_code_img=random_simple_nondet_code, fake_code_img=fake_nondet_x_code, name='nondet')
@@ -629,30 +649,40 @@ class SPADE(object):
         g_nondet_code_ce_loss = self.ce_weight * L2_mean_loss(tf.stop_gradient(fake_nondet_x_code), fake_nondet_x_code_logits)
         e_nondet_code_kl_loss = self.kl_weight * kl_loss(x_nondet_supercode_mean, x_nondet_supercode_var)
         e_nondet_code_klctx_loss = self.kl_weight * kl_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_var)
-        e_nondet_code_kl2_loss = self.kl_weight * kl_loss2(x_nondet_supercode_mean, x_nondet_supercode_var, prior_nondet_supercode_mean, prior_nondet_supercode_var)
-        e_nondet_code_klctx2_loss = self.kl_weight * kl_loss2(x_nondet_ctxcode_mean, x_nondet_ctxcode_var, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_var)
-        e_nondet_code_prior_loss = self.kl_weight * prior_loss(fake_nondet_x_supercode, prior_nondet_supercode_mean, prior_nondet_supercode_var)
+        #e_nondet_code_prior_loss = self.kl_weight * prior_loss(fake_nondet_x_supercode, prior_nondet_supercode_mean, prior_nondet_supercode_var)
+        e_nondet_code_prior_loss = -tf.reduce_mean(prior_nondet_supercode_dist.log_prob(fake_nondet_x_supercode)) / int(fake_nondet_x_supercode.get_shape()[-1])
         e_nondet_code_priorctx_loss = self.kl_weight * prior_loss(fake_nondet_x_ctxcode, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_var)
-        e_nondet_code_negent_loss = self.kl_weight * negent_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_var)
+        e_nondet_code_negent_loss = self.kl_weight * negent_loss(x_nondet_supercode_mean, x_nondet_supercode_var)
+        e_nondet_code_negentctx_loss = self.kl_weight * negent_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_var)
+        #e_nondet_code_kl2_loss = self.kl_weight * kl_loss2(x_nondet_supercode_mean, x_nondet_supercode_var, prior_nondet_supercode_mean, prior_nondet_supercode_var)
+        e_nondet_code_kl2_loss = self.kl_weight * (e_nondet_code_prior_loss + e_nondet_code_negent_loss)
+        #e_nondet_code_klctx2_loss = self.kl_weight * kl_loss2(x_nondet_ctxcode_mean, x_nondet_ctxcode_var, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_var)
+        e_nondet_code_klctx2_loss = self.kl_weight * (e_nondet_code_priorctx_loss + e_nondet_code_negentctx_loss)
                 
         e_nondet_adv_loss = self.adv_weight * generator_loss(self.code_gan_type, code_nondet_fake_logit)
         e_nondet_negent_loss = negent_loss(x_nondet_code_mean, x_nondet_code_var)
         e_nondet_kl_loss = self.kl_weight * kl_loss(x_nondet_code_mean, x_nondet_code_var)
+        #e_nondet_prior_loss = -tf.reduce_mean(prior_maf_nondet_code_dist.log_prob(tf.stop_gradient(fake_nondet_x_code))) / int(fake_nondet_x_code.get_shape()[-1])
         #e_nondet_kl_loss = self.kl_weight * (g_nondet_code_ce_loss + e_nondet_code_kl_loss + e_nondet_negent_loss)
         e_nondet_reg_loss = regularization_loss('encoder_nondet_code')
 
         g_det_code_ce_loss = self.ce_weight * L2_mean_loss(tf.stop_gradient(fake_det_x_code), fake_det_x_code_logits)
         e_det_code_kl_loss = self.kl_weight * kl_loss(x_det_supercode_mean, x_det_supercode_var)
         e_det_code_klctx_loss = self.kl_weight * kl_loss(x_det_ctxcode_mean, x_det_ctxcode_var)
-        e_det_code_kl2_loss = self.kl_weight * kl_loss2(x_det_supercode_mean, x_det_supercode_var, prior_det_supercode_mean, prior_det_supercode_var)
-        e_det_code_klctx2_loss = self.kl_weight * kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_var, prior_det_ctxcode_mean, prior_det_ctxcode_var)
-        e_det_code_prior_loss = self.kl_weight * prior_loss(fake_det_x_supercode, prior_det_supercode_mean, prior_det_supercode_var)
+        #e_det_code_prior_loss = self.kl_weight * prior_loss(fake_det_x_supercode, prior_det_supercode_mean, prior_det_supercode_var)
+        e_det_code_prior_loss = -tf.reduce_mean(prior_det_supercode_dist.log_prob(fake_det_x_supercode)) / int(fake_det_x_supercode.get_shape()[-1])
         e_det_code_priorctx_loss = self.kl_weight * prior_loss(fake_det_x_ctxcode, prior_det_ctxcode_mean, prior_det_ctxcode_var)
-        e_det_code_negent_loss = self.kl_weight * negent_loss(x_det_ctxcode_mean, x_det_ctxcode_var)
+        e_det_code_negent_loss = self.kl_weight * negent_loss(x_det_supercode_mean, x_det_supercode_var)
+        e_det_code_negentctx_loss = self.kl_weight * negent_loss(x_det_ctxcode_mean, x_det_ctxcode_var)
+        #e_det_code_kl2_loss = self.kl_weight * kl_loss2(x_det_supercode_mean, x_det_supercode_var, prior_det_supercode_mean, prior_det_supercode_var)
+        e_det_code_kl2_loss = self.kl_weight * (e_det_code_prior_loss + e_det_code_negent_loss) 
+        #e_det_code_klctx2_loss = self.kl_weight * kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_var, prior_det_ctxcode_mean, prior_det_ctxcode_var)
+        e_det_code_klctx2_loss = self.kl_weight * (e_det_code_priorctx_loss + e_det_code_negentctx_loss) 
 
         e_det_adv_loss = self.adv_weight * generator_loss(self.code_gan_type, code_det_fake_logit)
         e_det_negent_loss = negent_loss(x_det_code_mean, x_det_code_var)
         e_det_kl_loss = self.kl_weight * kl_loss(x_det_code_mean, x_det_code_var)
+        #e_det_prior_loss = -tf.reduce_mean(prior_maf_det_code_dist.log_prob(tf.stop_gradient(fake_det_x_code))) / int(fake_det_x_code.get_shape()[-1])
         #e_det_kl_loss = self.kl_weight * (g_det_code_ce_loss + e_det_code_kl_loss + e_det_negent_loss)
         e_det_reg_loss = regularization_loss('encoder_det_code')
 
@@ -677,8 +707,8 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + g_nondet_code_ce_loss + e_nondet_code_kl2_loss + e_nondet_code_klctx2_loss
-            self.e_loss = g_det_ce_loss + g_det_reg_loss + e_det_kl_loss_adjusted + e_det_reg_loss + g_det_code_ce_loss + e_det_code_kl2_loss + e_det_code_klctx2_loss
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + g_nondet_feature_loss + g_nondet_vgg_loss + e_nondet_kl_loss_adjusted  + 0*e_nondet_adv_loss + e_nondet_reg_loss + g_nondet_code_ce_loss + e_nondet_code_prior_loss + e_nondet_code_negent_loss + 0.01*e_nondet_code_klctx2_loss
+            self.e_loss = g_det_ce_loss + g_det_reg_loss + e_det_kl_loss_adjusted + e_det_reg_loss + g_det_code_ce_loss + e_det_code_prior_loss + e_det_code_negent_loss + 0.01*e_det_code_klctx2_loss
             self.de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
@@ -687,8 +717,8 @@ class SPADE(object):
         self.fake_nondet_x = fake_nondet_x_logits
         self.random_fake_det_x = random_fake_det_x_logits
         self.random_fake_nondet_x = random_fake_nondet_x_logits
-        self.random_simple_fake_det_x = random_simple_fake_det_x_logits
-        self.random_simple_fake_nondet_x = random_simple_fake_nondet_x_logits
+        #self.random_maf_fake_det_x = random_maf_fake_det_x_logits
+        #self.random_maf_fake_nondet_x = random_maf_fake_nondet_x_logits
 
         """ Test """
         self.test_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, len(img_class.color_value_dict)])
@@ -697,8 +727,8 @@ class SPADE(object):
 
         """ Training """
         t_vars = tf.trainable_variables()
-        G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'encoder_nondet_supercode-v2' in var.name or 'encoder_nondet_ctxcode-v2' in var.name or 'prior_nondet_ctxcode-v2' in var.name]
-        E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'encoder_det_supercode-v2' in var.name or 'encoder_det_ctxcode-v2' in var.name or 'prior_det_ctxcode-v2' in var.name]
+        G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'prior_nondet_supercode' in var.name]
+        E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'prior_det_supercode' in var.name]
         DE_vars = [var for var in t_vars if 'discriminator_det_code' in var.name or 'discriminator_nondet_code' in var.name]
         D_vars = [var for var in t_vars if 'discriminator_nondet' in var.name]
 
@@ -733,14 +763,17 @@ class SPADE(object):
         self.summary_e_det_code_klctx_loss = tf.summary.scalar("e_det_code_klctx_loss", e_det_code_klctx_loss)
         self.summary_e_det_code_kl2_loss = tf.summary.scalar("e_det_code_kl2_loss", e_det_code_kl2_loss)
         self.summary_e_det_code_klctx2_loss = tf.summary.scalar("e_det_code_klctx2_loss", e_det_code_klctx2_loss)
+        #self.summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss", e_det_code_prior_loss)
         self.summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss", e_det_code_prior_loss)
         self.summary_e_det_code_priorctx_loss = tf.summary.scalar("e_det_code_priorctx_loss", e_det_code_priorctx_loss)
         self.summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss", e_det_code_negent_loss)
+        self.summary_e_det_code_negentctx_loss = tf.summary.scalar("e_det_code_negentctx_loss", e_det_code_negentctx_loss)
 
         self.summary_e_det_negent_loss = tf.summary.scalar("e_det_negent_loss", e_det_negent_loss)
         self.summary_e_det_kl_loss = tf.summary.scalar("e_det_kl_loss", e_det_kl_loss)
         self.summary_e_det_kl_loss_ema = tf.summary.scalar("e_det_kl_loss_ema", e_det_kl_loss_ema)
         self.summary_e_det_kl_loss_weight = tf.summary.scalar("e_det_kl_loss_weight", e_det_kl_loss_weight)
+        #self.summary_e_det_prior_loss = tf.summary.scalar("e_det_prior_loss", e_det_prior_loss)
         self.summary_e_det_reg_loss = tf.summary.scalar("det_e_reg_loss", e_det_reg_loss)
         self.summary_e_det_adv_loss = tf.summary.scalar("e_det_adv_loss", e_det_adv_loss)
 
@@ -749,14 +782,17 @@ class SPADE(object):
         self.summary_e_nondet_code_klctx_loss = tf.summary.scalar("e_nondet_code_klctx_loss", e_nondet_code_klctx_loss)
         self.summary_e_nondet_code_kl2_loss = tf.summary.scalar("e_nondet_code_kl2_loss", e_nondet_code_kl2_loss)
         self.summary_e_nondet_code_klctx2_loss = tf.summary.scalar("e_nondet_code_klctx2_loss", e_nondet_code_klctx2_loss)
+        #self.summary_e_nondet_code_prior_loss = tf.summary.scalar("e_nondet_code_prior_loss", e_nondet_code_prior_loss)
         self.summary_e_nondet_code_prior_loss = tf.summary.scalar("e_nondet_code_prior_loss", e_nondet_code_prior_loss)
         self.summary_e_nondet_code_priorctx_loss = tf.summary.scalar("e_nondet_code_priorctx_loss", e_nondet_code_priorctx_loss)
         self.summary_e_nondet_code_negent_loss = tf.summary.scalar("e_nondet_code_negent_loss", e_nondet_code_negent_loss)
+        self.summary_e_nondet_code_negentctx_loss = tf.summary.scalar("e_nondet_code_negentctx_loss", e_nondet_code_negentctx_loss)
         
         self.summary_e_nondet_negent_loss = tf.summary.scalar("e_nondet_negent_loss", e_nondet_negent_loss)
         self.summary_e_nondet_kl_loss = tf.summary.scalar("e_nondet_kl_loss", e_nondet_kl_loss)
         self.summary_e_nondet_kl_loss_ema = tf.summary.scalar("e_nondet_kl_loss_ema", e_nondet_kl_loss_ema)
         self.summary_e_nondet_kl_loss_weight = tf.summary.scalar("e_nondet_kl_loss_weight", e_nondet_kl_loss_weight)
+        #self.summary_e_nondet_prior_loss = tf.summary.scalar("e_nondet_prior_loss", e_nondet_prior_loss)
         self.summary_e_nondet_reg_loss = tf.summary.scalar("e_nondet_reg_loss", e_nondet_reg_loss)
         self.summary_e_nondet_adv_loss = tf.summary.scalar("e_nondet_adv_loss", e_nondet_adv_loss)
 
@@ -779,8 +815,8 @@ class SPADE(object):
         self.summary_de_nondet_adv_loss = tf.summary.scalar("de_nondet_adv_loss", de_nondet_adv_loss)
         self.summary_de_nondet_reg_loss = tf.summary.scalar("de_nondet_reg_loss", de_nondet_reg_loss)
 
-        g_summary_list = [self.summary_g_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_code_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_code_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negent_loss]
-        e_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_e_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_code_klctx_loss, self.summary_e_det_code_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negent_loss]
+        g_summary_list = [self.summary_g_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_code_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_code_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_code_negentctx_loss, self.summary_e_nondet_negent_loss]
+        e_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_e_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_code_klctx_loss, self.summary_e_det_code_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_code_negentctx_loss, self.summary_e_det_negent_loss]
         d_summary_list = [self.summary_global_step, self.summary_d_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
         de_summary_list = [self.summary_de_det_adv_loss, self.summary_de_det_reg_loss, self.summary_de_loss, self.summary_de_nondet_adv_loss, self.summary_de_nondet_reg_loss] + code_det_real_summary + code_det_fake_summary + code_nondet_real_summary + code_nondet_fake_summary
 
@@ -845,8 +881,8 @@ class SPADE(object):
                         self.writer.add_summary(e_summary_str, counter)
                         past_e_loss = e_loss
 
-                        real_x_images, real_x, fake_det_x, fake_nondet_x, random_fake_det_x, random_fake_nondet_x, random_simple_fake_det_x, random_simple_fake_nondet_x, _, g_loss, summary_str = self.sess.run(
-                            [self.real_x, self.real_x, self.fake_det_x, self.fake_nondet_x, self.random_fake_det_x, self.random_fake_nondet_x, self.random_simple_fake_det_x, self.random_simple_fake_nondet_x,
+                        real_ctx_images, real_x_images, fake_det_x, fake_nondet_x, random_fake_det_x, random_fake_nondet_x, _, g_loss, summary_str = self.sess.run(
+                            [self.real_ctx, self.real_x, self.fake_det_x, self.fake_nondet_x, self.random_fake_det_x, self.random_fake_nondet_x,
                              self.G_optim,
                              self.g_loss, self.G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
@@ -870,12 +906,11 @@ class SPADE(object):
                 sys.stdout.flush()
 
                 if np.mod(idx + 1, self.print_freq) == 0:
+                    save_images(real_ctx_images, [self.batch_size, 1],
+                               './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
                     save_images(real_x_images, [self.batch_size, 1],
-                               './{}/image_real_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
-
-                    save_images(real_x, [self.batch_size, 1],
-                                './{}/real_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                               './{}/real_image_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
                     save_images(fake_det_x, [self.batch_size, 1],
                                 './{}/fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
@@ -887,10 +922,10 @@ class SPADE(object):
                     save_images(random_fake_nondet_x, [self.batch_size, 1],
                                 './{}/random_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
-                    save_images(random_simple_fake_det_x, [self.batch_size, 1],
-                                './{}/random_simple_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
-                    save_images(random_simple_fake_nondet_x, [self.batch_size, 1],
-                                './{}/random_simple_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                    #save_images(random_maf_fake_det_x, [self.batch_size, 1],
+                    #            './{}/random_maf_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                    #save_images(random_maf_fake_nondet_x, [self.batch_size, 1],
+                    #            './{}/random_maf_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
                 if np.mod(counter - 1, self.save_freq) == 0:
                     self.save(self.checkpoint_dir, counter)
@@ -940,12 +975,15 @@ class SPADE(object):
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
             checkpoint_reader = tf.train.NewCheckpointReader(ckpt.model_checkpoint_path)
+            tensor_shapes = checkpoint_reader.get_variable_to_shape_map()
             variables_to_restore = {}
             for known_variable in tf.global_variables():
                 tensor_name = known_variable.name.split(':')[0]
-                if checkpoint_reader.has_tensor(tensor_name):
-                    print("Variable restored: %s" % known_variable.name)
+                if checkpoint_reader.has_tensor(tensor_name) and known_variable.shape == tensor_shapes[tensor_name]:
+                    print("Variable restored: %s Shape: %s" % (known_variable.name, known_variable.shape))
                     variables_to_restore[tensor_name] = known_variable
+                else:
+                    print("Variable NOT restored: %s Shape: %s OriginalShape: %s" % (known_variable.name, known_variable.shape, tensor_shapes.get(tensor_name)))
 
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
             saver = tf.train.Saver(variables_to_restore)
