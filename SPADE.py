@@ -612,15 +612,15 @@ class SPADE(object):
 
         fake_det_x_logits = self.generator(fake_det_x_code, z=fake_det_x_code, scope="generator_det")
         
-        fake_full_x_code = tf.concat([0*fake_nondet_x_code, tf.stop_gradient(fake_det_x_code)],-1) 
-        fake_full_x_discriminator_code = tf.concat([0*fake_nondet_x_code, 0*tf.stop_gradient(fake_det_x_code)],-1) 
+        fake_full_x_code = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_det_x_code)],-1) 
+        fake_full_x_discriminator_code = tf.concat([0*fake_nondet_x_code, tf.stop_gradient(fake_det_x_code)],-1) 
         fake_nondet_x_logits = self.generator_spatial(fake_full_x_code, tf.stop_gradient(fake_det_x_logits), z=fake_nondet_x_code, reuse=False, scope="generator_nondet")
 
-        random_full_x_code = tf.concat([0*random_nondet_code,random_det_code], -1) 
+        random_full_x_code = tf.concat([random_nondet_code,random_det_code], -1) 
         random_fake_det_x_logits = self.generator(random_det_code, z=random_det_code, reuse=True, scope="generator_det")
         random_fake_nondet_x_logits = self.generator_spatial(random_full_x_code, random_fake_det_x_logits, z=random_nondet_code, reuse=True, scope="generator_nondet")
 
-        #random_maf_full_x_code = tf.concat([0*random_maf_nondet_code,random_maf_det_code], -1) 
+        #random_maf_full_x_code = tf.concat([random_maf_nondet_code,random_maf_det_code], -1) 
         #random_maf_fake_det_x_logits = self.generator(random_maf_det_code, z=random_maf_det_code, reuse=True, scope="generator_det")
         #random_maf_fake_nondet_x_logits = self.generator_spatial(random_maf_full_x_code, random_maf_fake_det_x_logits, z=random_maf_nondet_code, reuse=True, scope="generator_nondet")
 
@@ -707,8 +707,8 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + g_nondet_feature_loss + g_nondet_vgg_loss + e_nondet_kl_loss_adjusted  + 0*e_nondet_adv_loss + e_nondet_reg_loss + g_nondet_code_ce_loss + e_nondet_code_prior_loss + e_nondet_code_negent_loss + 0.01*e_nondet_code_klctx2_loss
-            self.e_loss = g_det_ce_loss + g_det_reg_loss + e_det_kl_loss_adjusted + e_det_reg_loss + g_det_code_ce_loss + e_det_code_prior_loss + e_det_code_negent_loss + 0.01*e_det_code_klctx2_loss
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + g_nondet_feature_loss + g_nondet_vgg_loss + e_nondet_kl_loss_adjusted + 0*e_nondet_adv_loss + e_nondet_reg_loss + g_nondet_code_ce_loss + e_nondet_code_prior_loss + e_nondet_code_negent_loss + 0.01*e_nondet_code_klctx2_loss
+            self.e_loss = g_det_ce_loss + g_det_reg_loss + e_det_kl_loss_adjusted + 0*e_det_adv_loss + e_det_reg_loss + g_det_code_ce_loss + e_det_code_prior_loss + e_det_code_negent_loss + 0.01*e_det_code_klctx2_loss
             self.de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
