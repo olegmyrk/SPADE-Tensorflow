@@ -260,27 +260,27 @@ class SPADE(object):
             x = tf.reshape(x, [batch_size, z_height, z_width, channel])
 
 
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='adain_resblock_fix_0')
+            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
 
             x = up_sample(x, scale_factor=2)
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='adain_resblock_fix_1')
+            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
 
             if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
 
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='adain_resblock_fix_2')
+            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
 
             for i in range(4) :
                 x = up_sample(x, scale_factor=2)
-                x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='adain_resblock_' + str(i))
+                x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
 
                 channel = channel // 2
                 # 512 -> 256 -> 128 -> 64
 
             if self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
-            #    x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='adain_resblock_4')
-            x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='adain_resblock_4')
+            #    x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
+            x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
 
             x = lrelu(x, 0.2)
             x = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
@@ -329,27 +329,27 @@ class SPADE(object):
             x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
             x = tf.reshape(x, [batch_size, z_height, z_width, channel])
 
-            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='spade_resblock_fix_0')
+            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
 
             x = up_sample(x, scale_factor=2)
-            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='spade_resblock_fix_1')
+            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
 
             if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
 
-            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='spade_resblock_fix_2')
+            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
 
             for i in range(4) :
                 x = up_sample(x, scale_factor=2)
-                x = cspade_resblock(context, scaffold, x, channels=channel//2, use_bias=True, sn=self.sn, scope='spade_resblock_' + str(i))
+                x = cspade_resblock(context, scaffold, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
 
                 channel = channel // 2
                 # 512 -> 256 -> 128 -> 64
 
             if self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
-            #    x = cspade_resblock(context, scaffold, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='spade_resblock_4')
-            x = cspade_resblock(context, scaffold, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='spade_resblock_4')
+            #    x = cspade_resblock(context, scaffold, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
+            x = cspade_resblock(context, scaffold, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
 
             x = lrelu(x, 0.2)
             x = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
@@ -458,7 +458,7 @@ class SPADE(object):
 
                 #x = conv(x, channel, kernel=4, stride=2, pad=1, use_bias=True, sn=False, scope='ms_' + str(scale) + 'conv_0')
                 #x = lrelu(x, 0.2)
-                x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='ms_' + str(scale) + 'adain_0')
+                x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='ms_' + str(scale) + 'resblock_0')
                 x = down_sample_avg(x)
 
                 feature_loss.append(x)
@@ -469,7 +469,7 @@ class SPADE(object):
                     #x = instance_norm(x, scope='ms_' + str(scale) + 'ins_norm_' + str(i))
                     #x = lrelu(x, 0.2)
 
-                    x = adain_resblock(0*code, x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'adain_' + str(i))
+                    x = adain_resblock(0*code, x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
                     if i !=  self.n_dis - 1:
                         x = down_sample_avg(x)
 
@@ -627,11 +627,11 @@ class SPADE(object):
         [code_det_real_logit, code_det_real_summary], [code_det_fake_logit, code_det_fake_summary] = self.discriminate_code(real_code_img=random_simple_det_code, fake_code_img=fake_det_x_code, name='det')
         [code_nondet_real_logit, code_nondet_real_summary], [code_nondet_fake_logit, code_nondet_fake_summary] = self.discriminate_code(real_code_img=random_simple_nondet_code, fake_code_img=fake_nondet_x_code, name='nondet')
 
-        [nondet_real_logit, real_nondet_summary] = self.full_discriminator(tf.concat([self.real_x, fake_det_x_logits], -1), fake_full_x_discriminator_code, scope='discriminator_nondet-v2', label='real_nondet-v2')
-        [fake_nondet_logit, fake_nondet_summary] = self.full_discriminator(tf.concat([fake_nondet_x_logits, fake_det_x_logits], -1), fake_full_x_discriminator_code, reuse=True, scope='discriminator_nondet-v2', label='fake_nondet-v2')
+        [nondet_real_logit, real_nondet_summary] = self.full_discriminator(tf.concat([self.real_x, fake_det_x_logits], -1), fake_full_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
+        [fake_nondet_logit, fake_nondet_summary] = self.full_discriminator(tf.concat([fake_nondet_x_logits, fake_det_x_logits], -1), fake_full_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
-            GP = self.gradient_penalty(real=tf.concat([self.real_x, fake_det_x_logits], -1), fake=tf.concat([fake_nondet_x_logits, fake_det_x_logits],-1), code=fake_full_x_discriminator_code, discriminator=self.full_discriminator, name='nondet-v2')
+            GP = self.gradient_penalty(real=tf.concat([self.real_x, fake_det_x_logits], -1), fake=tf.concat([fake_nondet_x_logits, fake_det_x_logits],-1), code=fake_full_x_discriminator_code, discriminator=self.full_discriminator, name='nondet')
         else:
             GP = 0
 

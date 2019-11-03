@@ -185,7 +185,7 @@ def flatten(x):
 # Residual-block
 ##################################################################################
 
-def resblock(context, x_init, channels, use_bias=True, sn=False, scope='resblock'):
+def resblock(x_init, channels, use_bias=True, sn=False, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
@@ -200,26 +200,26 @@ def resblock(context, x_init, channels, use_bias=True, sn=False, scope='resblock
 
         return x + x_init
 
-def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, scope='constin_resblock'):
+def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
     with tf.variable_scope(scope) :
-        x = constin(x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='constin_1')
+        x = constin(x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        x = constin(x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='constin_2')
+        x = constin(x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='norm_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            x_init = constin(x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='constin_shortcut')
+            x_init = constin(x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
 
-def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope='adain'):
+def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     with tf.variable_scope(scope) :
         if norm:
             x = param_free_norm(x_init)
@@ -235,26 +235,26 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope='adain')
 
         return x
 
-def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True, scope='adain_resblock'):
+def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
     with tf.variable_scope(scope) :
-        x = adain(context, x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='adain_1')
+        x = adain(context, x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='adain_2')
+        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='norm_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='adain_shortcut')
+            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
 
-def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope='adain'):
+def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     with tf.variable_scope(scope) :
         if norm:
             x = param_free_norm(x_init)
@@ -281,27 +281,27 @@ def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope='
 
         return x
 
-def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope='spade_resblock'):
+def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
     with tf.variable_scope(scope) :
-        x = spade(segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='spade_1')
+        x = spade(segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        x = spade(segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='spade_2')
+        x = spade(segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            x_init = spade(segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='spade_shortcut')
+            x_init = spade(segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
 
 
-def spade(segmap, x_init, channels, use_bias=True, sn=False, scope='spade') :
+def spade(segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
     with tf.variable_scope(scope) :
         x = param_free_norm(x_init)
 
@@ -323,27 +323,27 @@ def spade(segmap, x_init, channels, use_bias=True, sn=False, scope='spade') :
 
         return x
 
-def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, scope='spade_resblock'):
+def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
     with tf.variable_scope(scope) :
-        x = cspade(context, segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='spade_1')
+        x = cspade(context, segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        x = cspade(context, segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='spade_2')
+        x = cspade(context, segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            x_init = cspade(context, segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='spade_shortcut')
+            x_init = cspade(context, segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
 
 
-def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope='spade') :
+def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
     with tf.variable_scope(scope) :
         x = param_free_norm(x_init)
 
