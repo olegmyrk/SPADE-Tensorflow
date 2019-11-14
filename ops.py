@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tf_contrib
 from utils import pytorch_xavier_weight_factor, pytorch_kaiming_weight_factor
@@ -222,7 +223,8 @@ def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, scope
 def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     with tf.variable_scope(scope) :
         if norm:
-            x = param_free_norm(x_init)
+            #x = param_free_norm(x_init)
+            x = batch_norm(x_init, scope="batch_norm")
         else:
             x = x_init
 
@@ -257,18 +259,12 @@ def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True
 def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     with tf.variable_scope(scope) :
         if norm:
-            x = param_free_norm(x_init)
+            #x = param_free_norm(x_init)
+            x = batch_norm(x_init, scope="batch_norm")
         else:
             x = x_init
 
         x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
-
-        #gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
-        #beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
-
-        #x = x * (1 + gamma) + beta
-
-        #return x
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
@@ -276,6 +272,23 @@ def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=N
         context_shape = [x_b, 1, 1, channels]
         context_gamma = tf.reshape(context_gamma, context_shape)
         context_beta = tf.reshape(context_beta, context_shape)
+
+        x = x * (1 + context_gamma) + context_beta
+
+        return x
+
+def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
+    with tf.variable_scope(scope) :
+        if norm:
+            #x = param_free_norm(x_init)
+            x = batch_norm(x_init, scope="batch_norm")
+        else:
+            x = x_init
+
+        x_b, x_c = x_init.get_shape().as_list()
+
+        context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
+        context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
 
         x = x * (1 + context_gamma) + context_beta
 
@@ -303,7 +316,8 @@ def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope=None
 
 def spade(segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
     with tf.variable_scope(scope) :
-        x = param_free_norm(x_init)
+        #x = param_free_norm(x_init)
+        x = batch_norm(x_init, scope="batch_norm")
 
         _, x_h, x_w, _ = x_init.get_shape().as_list()
         _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
@@ -345,7 +359,8 @@ def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, 
 
 def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
     with tf.variable_scope(scope) :
-        x = param_free_norm(x_init)
+        #x = param_free_norm(x_init)
+        x = batch_norm(x_init, scope="batch_norm")
 
         x_b, x_h, x_w, _ = x_init.get_shape().as_list()
         _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
@@ -377,6 +392,15 @@ def param_free_norm(x, epsilon=1e-5) :
     x_std = tf.sqrt(x_var + epsilon)
 
     return (x - x_mean) / x_std
+
+def batch_norm(x, epsilon=1e-5, scope=None):
+    with tf.variable_scope(scope):
+        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
+        shape = mean.get_shape().as_list()
+        offset = tf.get_variable("offset", initializer=np.zeros(shape, dtype='float32'))
+        scale = tf.get_variable("scale", initializer=np.ones(shape, dtype='float32'))
+        result = tf.nn.batch_normalization(x, mean, var, offset, scale, epsilon)
+    return result
 
 ##################################################################################
 # Sampling
@@ -464,12 +488,12 @@ def spectral_norm(w, iteration=1):
 ##################################################################################
 
 def L2_loss(x, y):
-    loss = tf.reduce_mean(tf.reduce_sum((x - y)**2, -1))
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(x - y), -1))
 
     return loss
 
 def L2_mean_loss(x, y):
-    loss = tf.reduce_mean(tf.reduce_mean((x - y)**2, -1))
+    loss = tf.reduce_mean(tf.reduce_mean(tf.square(x - y), -1))
 
     return loss
 
@@ -578,7 +602,7 @@ def kl_loss2(mean1, logvar1, mean2, logvar2):
 
     return loss
 
-def prior_loss(x, mean, logvar):
+def gaussian_loss(x, mean, logvar):
     k = mean.get_shape()[-1]
     pi = tf.constant(math.pi)
     loss = 0.5*tf.reduce_mean(tf.reduce_sum(tf.square(x - mean) / tf.exp(logvar) + logvar + tf.log(2*pi), -1)) / int(k)
