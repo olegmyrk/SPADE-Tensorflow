@@ -215,7 +215,7 @@ class SPADE(object):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
-            for i in range(8):
+            for i in range(num_layers):
                 x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
                 x = batch_norm(x, hidden_channel, scope="batch_norm_" + str(i))
                 x = lrelu(x, 0.2)
@@ -348,23 +348,23 @@ class SPADE(object):
             x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
             x = tf.reshape(x, [batch_size, z_height, z_width, channel])
 
-            #x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
+            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
+            #x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
 
             x = up_sample(x, scale_factor=2)
-            #x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
+            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
+            #x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
 
             if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
 
-            #x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
+            x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
+            #x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
 
             for i in range(4) :
                 x = up_sample(x, scale_factor=2)
-                #x = cspade_resblock(context, scaffold, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
-                x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
+                x = cspade_resblock(context, scaffold, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
+                #x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
 
                 channel = channel // 2
                 # 512 -> 256 -> 128 -> 64
@@ -774,8 +774,8 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 0*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + 0*e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(e_nondet_kl2_loss + (g_nondet_code_ce_loss + 0.01*e_nondet_code_kl2_loss + e_nondet_negent_loss)) + e_nondet_priormaf_loss + tf.zeros_like(e_nondet_code_klctx2_loss)
-            self.e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(e_det_kl2_loss + (g_det_code_ce_loss + 0.01*e_det_code_kl2_loss + e_det_negent_loss)) + e_det_priormaf_loss + tf.zeros_like(e_det_code_klctx2_loss)
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 0*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.001*e_nondet_code_kl2_loss) + e_nondet_negent_loss) + e_nondet_priormaf_loss + tf.zeros_like(e_nondet_code_klctx2_loss)
+            self.e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(e_det_prior2_loss + (g_det_code_ce_loss + 0.001*e_det_code_kl2_loss) + e_det_negent_loss) + e_det_priormaf_loss + tf.zeros_like(e_det_code_klctx2_loss)
             self.de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
