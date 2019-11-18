@@ -211,7 +211,7 @@ class SPADE(object):
                         )
         return dist
 
-    def encoder_supercode(self, x, num_layers=8, reuse=False, scope=None):
+    def encoder_supercode(self, x, num_layers=3, reuse=False, scope=None):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
@@ -225,7 +225,7 @@ class SPADE(object):
 
             return mean, var
 
-    def generator_code(self, code, x, num_layers=8, epsilon=1e-3, reuse=False, scope=None):
+    def generator_code(self, code, x, num_layers=3, epsilon=1e-3, reuse=False, scope=None):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
