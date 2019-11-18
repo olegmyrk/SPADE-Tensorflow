@@ -613,7 +613,7 @@ class SPADE(object):
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
         x_det_ctxcode_mean, x_det_ctxcode_logvar = self.encoder_code(self.real_ctx, scope='encoder_det_ctxcode')
         #x_det_ctxcode_mean, x_det_ctxcode_logvar = self.encoder_code(self.real_ctx, reuse=True, scope='encoder_det_code')
-        fake_det_x_ctxcode = x_det_ctxcode_mean#z_sample(x_det_ctxcode_mean, x_det_ctxcode_logvar)
+        fake_det_x_ctxcode = z_sample(x_det_ctxcode_mean, x_det_ctxcode_logvar)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_ctxcode, fake_det_x_supercode, scope="generator_det_code")
         
         prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code()#self.encoder_code(self.real_x, scope='prior_det_supercode')
@@ -638,7 +638,7 @@ class SPADE(object):
         fake_nondet_x_supercode = z_sample(x_nondet_supercode_mean, x_nondet_supercode_logvar)
         x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar = self.encoder_code(self.real_ctx, scope='encoder_nondet_ctxcode')
         #x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar = self.encoder_code(self.real_ctx, reuse=True, scope='encoder_nondet_code')
-        fake_nondet_x_ctxcode = x_nondet_ctxcode_mean#z_sample(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
+        fake_nondet_x_ctxcode = z_sample(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code()#self.encoder_code(self.real_x, scope='prior_nondet_supercode')
