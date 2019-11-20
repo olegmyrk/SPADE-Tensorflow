@@ -683,11 +683,11 @@ class SPADE(object):
         [code_nondet_real_logit, code_nondet_real_summary], [code_nondet_fake_logit, code_nondet_fake_summary] = self.discriminate_code(real_code_img=random_simple_nondet_code, fake_code_img=fake_nondet_x_code, name='nondet')
 
         discriminator_fun = self.full_discriminator
-        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, self.real_x, fake_det_x_mean], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
-        [fake_nondet_logit, fake_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_logits, fake_det_x_mean], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
+        [fake_nondet_logit, fake_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_logits, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
-            GP = self.gradient_penalty(real=tf.concat([self.real_x, fake_det_x_mean], -1), fake=tf.concat([fake_nondet_x_logits, fake_det_x_mean],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
+            GP = self.gradient_penalty(real=tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_logits, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
         else:
             GP = 0
 
