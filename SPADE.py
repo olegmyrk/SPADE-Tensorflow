@@ -416,8 +416,8 @@ class SPADE(object):
 
             #x = conv(scaffold, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv')
             #x = instance_norm(x, scope='ins_norm')
-            x = adain_resblock(code, x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
-            #x = constin_resblock(x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
+            #x = adain_resblock(code, x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
+            x = constin_resblock(x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
             x = down_sample_avg(x)
             
             feature_loss.append(x)
@@ -426,8 +426,8 @@ class SPADE(object):
                 #x = lrelu(x, 0.2)
                 #x = conv(x, channel * 2, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
                 #x = instance_norm(x, scope='ins_norm_' + str(i))
-                x = adain_resblock(code, x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
-                #x = constin_resblock(x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
+                #x = adain_resblock(code, x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
+                x = constin_resblock(x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
                 x = down_sample_avg(x)
 
                 feature_loss.append(x)
@@ -439,8 +439,8 @@ class SPADE(object):
             #x = lrelu(x, 0.2)
             #x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='resblock_3')
             #x = instance_norm(x, scope='ins_norm_3')
-            x = adain_resblock(0*code, x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
-            #x = constin_resblock(x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
+            #x = adain_resblock(0*code, x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
+            x = constin_resblock(x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
             x = down_sample_avg(x)
 
             #if self.img_height >= 256 or self.img_width >= 256 :
@@ -448,8 +448,8 @@ class SPADE(object):
                 #x = lrelu(x, 0.2)
                 #x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=False, sn=self.sn, scope='resblock_4')
                 #x = instance_norm(x, scope='ins_norm_4')
-                x = adain_resblock(0*code, x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
-                #x = constin_resblock(x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
+                #x = adain_resblock(0*code, x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
+                x = constin_resblock(x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
                 x = down_sample_avg(x)
                 
                 feature_loss.append(x)
@@ -491,8 +491,8 @@ class SPADE(object):
 
                 #x = conv(x, channel, kernel=4, stride=2, pad=1, use_bias=True, sn=False, scope='ms_' + str(scale) + 'conv_0')
                 #x = lrelu(x, 0.2)
-                x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
-                #x = constin_resblock(x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
+                #x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
+                x = constin_resblock(x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
                 x = down_sample_avg(x)
 
                 feature_loss.append(x)
@@ -503,8 +503,8 @@ class SPADE(object):
                     #x = instance_norm(x, scope='ms_' + str(scale) + 'ins_norm_' + str(i))
                     #x = lrelu(x, 0.2)
 
-                    x = adain_resblock(code, x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
-                    #x = constin_resblock(x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
+                    #x = adain_resblock(code, x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
+                    x = constin_resblock(x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
                     if i !=  self.n_dis - 1:
                         x = down_sample_avg(x)
 
