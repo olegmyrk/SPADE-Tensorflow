@@ -612,6 +612,7 @@ class SPADE(object):
         x_det_code_mean, x_det_code_logvar = self.encoder_code(self.real_x, scope='encoder_det_code')
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
+        supercode_stop_gradient = lambda x: x
         code_stop_gradient = lambda x: x
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), scope='encoder_det_supercode')
@@ -623,7 +624,7 @@ class SPADE(object):
         
         prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code()#self.encoder_code(self.real_x, scope='prior_det_supercode')
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
-        prior_det_supercode_dist = self.prior_code_maf(tf.stop_gradient(fake_det_x_ctxcode), scope='prior_det_supercode')
+        prior_det_supercode_dist = self.prior_code_maf(supercode_stop_gradient(fake_det_x_ctxcode), scope='prior_det_supercode')
         random_det_supercode = prior_det_supercode_dist.sample()
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code()
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
@@ -648,7 +649,7 @@ class SPADE(object):
         
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code()#self.encoder_code(self.real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
-        prior_nondet_supercode_dist = self.prior_code_maf(tf.stop_gradient(fake_nondet_x_ctxcode), scope='prior_nondet_supercode')
+        prior_nondet_supercode_dist = self.prior_code_maf(supercode_stop_gradient(fake_nondet_x_ctxcode), scope='prior_nondet_supercode')
         random_nondet_supercode = prior_nondet_supercode_dist.sample()
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code()
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
@@ -712,7 +713,7 @@ class SPADE(object):
         g_nondet_code_ce_loss = gaussian_loss(code_stop_gradient(fake_nondet_x_code), fake_nondet_x_code_mean, fake_nondet_x_code_logvar)
         e_nondet_code_kl_loss = kl_loss(x_nondet_supercode_mean, x_nondet_supercode_logvar)
         e_nondet_code_prior_loss = gaussian_loss(fake_nondet_x_supercode, prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
-        e_nondet_code_prior2_loss = -tf.reduce_mean(prior_nondet_supercode_dist.log_prob(tf.stop_gradient(fake_nondet_x_supercode))) / int(fake_nondet_x_supercode.get_shape()[-1])
+        e_nondet_code_prior2_loss = -tf.reduce_mean(prior_nondet_supercode_dist.log_prob(supercode_stop_gradient(fake_nondet_x_supercode))) / int(fake_nondet_x_supercode.get_shape()[-1])
         e_nondet_code_negent_loss = negent_loss(x_nondet_supercode_mean, x_nondet_supercode_logvar)
         #e_nondet_code_kl2_loss = kl_loss2(x_nondet_supercode_mean, x_nondet_supercode_logvar, prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         e_nondet_code_kl2_loss = (e_nondet_code_prior2_loss + e_nondet_code_negent_loss)
@@ -736,7 +737,7 @@ class SPADE(object):
         g_det_code_ce_loss = gaussian_loss(code_stop_gradient(fake_det_x_code), fake_det_x_code_mean, fake_det_x_code_logvar)
         e_det_code_kl_loss = kl_loss(x_det_supercode_mean, x_det_supercode_logvar)
         e_det_code_prior_loss = gaussian_loss(fake_det_x_supercode, prior_det_supercode_mean, prior_det_supercode_logvar)
-        e_det_code_prior2_loss = -tf.reduce_mean(prior_det_supercode_dist.log_prob(tf.stop_gradient(fake_det_x_supercode))) / int(fake_det_x_supercode.get_shape()[-1])
+        e_det_code_prior2_loss = -tf.reduce_mean(prior_det_supercode_dist.log_prob(supercode_stop_gradient(fake_det_x_supercode))) / int(fake_det_x_supercode.get_shape()[-1])
         e_det_code_negent_loss = negent_loss(x_det_supercode_mean, x_det_supercode_logvar)
         #e_det_code_kl2_loss = kl_loss2(x_det_supercode_mean, x_det_supercode_logvar, prior_det_supercode_mean, prior_det_supercode_logvar)
         e_det_code_kl2_loss = (e_det_code_prior2_loss + e_det_code_negent_loss) 
