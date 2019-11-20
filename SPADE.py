@@ -177,7 +177,7 @@ class SPADE(object):
         var = tf.zeros([batch_size, out_channel])
         return mean, var
 
-    def prior_code_maf(self, code, num_bijectors=8, reuse=False, scope=None):
+    def prior_code_maf(self, code, num_bijectors=0, reuse=False, scope=None):
         context = code
         batch_size = self.batch_size
         out_channel = self.ch * 4
@@ -204,9 +204,14 @@ class SPADE(object):
                 
             flow_bijector = tfb.Chain(list(reversed(bijectors[:-1])))
 
-            base_dist = tfd.MultivariateNormalDiag(loc=tf.zeros([out_channel]), scale_diag=tf.ones([out_channel]))
+            mvn_loc = fully_connected(context, units=out_channel, scope='mvn_loc')
+            _, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, scope='mvn_scale_seed'), [batch_size, out_channel, out_channel]), full_matrices=True)
+            mvn_scale_diag = tf.linalg.diag(tf.math.exp(fully_connected(context, units=out_channel, scope='mvn_scale_logdiag')))
+            mvn_scale = tf.linalg.matmul(tf.matmul(mvn_scale_u, mvn_scale_diag), tf.linalg.transpose(mvn_scale_u))
+            mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
+
             dist = tfd.TransformedDistribution(
-                            distribution=base_dist,
+                            distribution=mvn_dist,
                             bijector=flow_bijector
                         )
         return dist
@@ -619,7 +624,7 @@ class SPADE(object):
         prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code()#self.encoder_code(self.real_x, scope='prior_det_supercode')
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         prior_det_supercode_dist = self.prior_code_maf(tf.stop_gradient(fake_det_x_ctxcode), scope='prior_det_supercode')
-        random_det_supercode = prior_det_supercode_dist.sample(self.batch_size)
+        random_det_supercode = prior_det_supercode_dist.sample()
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code()
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
@@ -627,7 +632,7 @@ class SPADE(object):
         random_simple_det_code = z_sample(*self.prior_code())
 
         #prior_maf_det_code_dist = self.prior_code_maf(fake_det_x_ctxcode, scope='prior_maf_det_code')
-        #random_maf_det_code = prior_maf_det_code_dist.sample(self.batch_size)
+        #random_maf_det_code = prior_maf_det_code_dist.sample()
         
         prior_nondet_code_mean, prior_nondet_code_logvar = self.prior_code()
 
@@ -644,7 +649,7 @@ class SPADE(object):
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code()#self.encoder_code(self.real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_maf(tf.stop_gradient(fake_nondet_x_ctxcode), scope='prior_nondet_supercode')
-        random_nondet_supercode = prior_nondet_supercode_dist.sample(self.batch_size)
+        random_nondet_supercode = prior_nondet_supercode_dist.sample()
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code()
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
@@ -652,7 +657,7 @@ class SPADE(object):
         random_simple_nondet_code = z_sample(*self.prior_code())
 
         #prior_maf_nondet_code_dist = self.prior_code_maf(fake_nondet_x_ctxcode, scope='prior_maf_nondet_code')
-        #random_maf_nondet_code = prior_maf_nondet_code_dist.sample(self.batch_size)
+        #random_maf_nondet_code = prior_maf_nondet_code_dist.sample()
 
         fake_full_det_x_code = tf.concat([fake_det_x_ctxcode],-1)
         fake_full_det_x_z = tf.concat([fake_det_x_code],-1)
