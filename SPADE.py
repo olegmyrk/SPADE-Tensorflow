@@ -177,7 +177,7 @@ class SPADE(object):
         var = tf.zeros([batch_size, out_channel])
         return mean, var
 
-    def prior_code_dist(self, code, num_bijectors=0, epsilon=1e-3, reuse=False, scope=None):
+    def prior_code_dist(self, code, num_bijectors=0, epsilon=1e-2, reuse=False, scope=None):
         context = code
         batch_size = self.batch_size
         out_channel = self.ch * 4
