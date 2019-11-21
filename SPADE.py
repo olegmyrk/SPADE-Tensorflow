@@ -177,7 +177,7 @@ class SPADE(object):
         var = tf.zeros([batch_size, out_channel])
         return mean, var
 
-    def prior_code_dist(self, code, num_bijectors=0, reuse=False, scope=None):
+    def prior_code_dist(self, code, num_bijectors=0, epsilon=1e-3, reuse=False, scope=None):
         context = code
         batch_size = self.batch_size
         out_channel = self.ch * 4
@@ -206,7 +206,7 @@ class SPADE(object):
 
             mvn_loc = fully_connected(context, units=out_channel, scope='mvn_loc')
             _, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, scope='mvn_scale_seed'), [batch_size, out_channel, out_channel]), full_matrices=True)
-            mvn_scale_diag = tf.linalg.diag(tf.math.exp(fully_connected(context, units=out_channel, scope='mvn_scale_logdiag')))
+            mvn_scale_diag = tf.linalg.diag(epsilon + tf.math.sigmoid(fully_connected(context, units=out_channel, scope='mvn_scale_logdiag')))
             mvn_scale = tf.linalg.matmul(tf.matmul(mvn_scale_u, mvn_scale_diag), tf.linalg.transpose(mvn_scale_u))
             mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
@@ -786,7 +786,7 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 0*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.001*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.001*e_nondet_klctx2_loss
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 0*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.01*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.01*e_nondet_klctx2_loss
             self.e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 0.001*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.001*e_det_klctx2_loss
             self.de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
