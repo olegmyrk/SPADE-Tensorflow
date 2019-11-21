@@ -629,7 +629,7 @@ class SPADE(object):
         x_det_code_mean, x_det_code_logvar = self.encoder_code(self.real_x, scope='encoder_det_code')
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
-        supercode_stop_gradient = lambda x: x
+        supercode_stop_gradient = tf.stop_gradient
         code_stop_gradient = tf.stop_gradient
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), scope='encoder_det_supercode')
