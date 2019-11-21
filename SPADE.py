@@ -35,6 +35,9 @@ class SPADE(object):
         self.print_freq = args.print_freq
         self.save_freq = args.save_freq
 
+        self.supercode_num_layers = args.supercode_num_layers
+        self.code_num_layers = args.code_num_layers
+
         self.init_lr = args.lr
         self.TTUR = args.TTUR
         self.ch = args.ch
@@ -48,9 +51,6 @@ class SPADE(object):
 
 
         """ Weight """
-        self.unet_kl_weight = args.unet_kl_weight
-        self.unet_ce_weight = args.unet_ce_weight
-
         self.adv_weight = args.adv_weight
         self.vgg_weight = args.vgg_weight
         self.feature_weight = args.feature_weight
@@ -177,7 +177,7 @@ class SPADE(object):
         var = tf.zeros([batch_size, out_channel])
         return mean, var
 
-    def prior_code_dist(self, code, num_bijectors=0, epsilon=1e-3, reuse=False, scope=None):
+    def prior_code_dist(self, code, epsilon=1e-3, reuse=False, scope=None):
         context = code
         batch_size = self.batch_size
         out_channel = self.ch * 4
@@ -185,7 +185,7 @@ class SPADE(object):
 
         with tf.variable_scope(scope, reuse=reuse):
             bijectors = []
-            for i in range(num_bijectors):
+            for i in range(self.supercode_num_layers):
                 bijectors.append(tfb.MaskedAutoregressiveFlow(
                   shift_and_log_scale_fn=tfb.masked_autoregressive_default_template(
                   hidden_layers=[hidden_channel, hidden_channel], name=scope + "/masked_autoregressive_default_template_" + str(i))))
@@ -225,13 +225,13 @@ class SPADE(object):
                         )
         return dist
 
-    def encoder_supercode(self, x_init, num_layers=3, reuse=False, scope=None):
+    def encoder_supercode(self, x_init, reuse=False, scope=None):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
             xs = [x_init]
             x = x_init
-            for i in range(num_layers):
+            for i in range(self.code_num_layers):
                 x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
                 x = batch_norm(x, hidden_channel, scope="batch_norm_" + str(i))
                 x = lrelu(x, 0.2)
@@ -243,13 +243,13 @@ class SPADE(object):
 
             return mean, var
 
-    def generator_code(self, code, x_init, num_layers=3, epsilon=1e-3, reuse=False, scope=None):
+    def generator_code(self, code, x_init, epsilon=1e-3, reuse=False, scope=None):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
             xs = [x_init]
             x = x_init
-            for i in range(num_layers):
+            for i in range(self.code_num_layers):
                 x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
                 x = adain_vector(code, x, hidden_channel, scope="adain_" + str(i))
                 x = lrelu(x, 0.2)

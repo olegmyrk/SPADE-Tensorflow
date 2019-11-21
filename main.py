@@ -24,9 +24,9 @@ def parse_args():
 
     parser.add_argument('--num_style', type=int, default=3, help='number of styles to sample')
     parser.add_argument('--guide_img', type=str, default='guide.jpg', help='Style guided image translation')
-
-    parser.add_argument('--unet_ce_weight', type=int, default=1.0, help='Weight about unet cross entropy loss')
-    parser.add_argument('--unet_kl_weight', type=float, default=1.0, help='Weight about unet kl-divergence')
+    
+    parser.add_argument('--supercode_num_layers', type=int, default=0, help='number of code superprior hidden layers')
+    parser.add_argument('--code_num_layers', type=int, default=1, help='number of code prior hidden layers')
     
     parser.add_argument('--ld', type=float, default=10.0, help='The gradient penalty lambda')
     parser.add_argument('--adv_weight', type=float, default=1, help='Weight about GAN')
