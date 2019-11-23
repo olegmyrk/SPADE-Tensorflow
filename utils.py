@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tensorflow.contrib import slim
-from scipy import misc
+import imageio
 import os, random
 import numpy as np
 from glob import glob
@@ -30,19 +29,19 @@ class Image_data:
 
 
     def image_processing(self, ctxfilename, filename, segmap):
-        ctx = tf.read_file(ctxfilename)
+        ctx = tf.io.read_file(ctxfilename)
         ctx_decode = tf.image.decode_jpeg(ctx, channels=self.channels, dct_method='INTEGER_ACCURATE')
-        ctximg = tf.image.resize_images(ctx_decode, [self.img_height, self.img_width])
+        ctximg = tf.image.resize(ctx_decode, [self.img_height, self.img_width])
         ctximg = tf.cast(ctximg, tf.float32) / 127.5 - 1
 
-        x = tf.read_file(filename)
+        x = tf.io.read_file(filename)
         x_decode = tf.image.decode_jpeg(x, channels=self.channels, dct_method='INTEGER_ACCURATE')
-        img = tf.image.resize_images(x_decode, [self.img_height, self.img_width])
+        img = tf.image.resize(x_decode, [self.img_height, self.img_width])
         img = tf.cast(img, tf.float32) / 127.5 - 1
 
-        segmap_x = tf.read_file(segmap)
+        segmap_x = tf.io.read_file(segmap)
         segmap_decode = tf.image.decode_jpeg(segmap_x, channels=self.segmap_channel, dct_method='INTEGER_ACCURATE')
-        segmap_img = tf.image.resize_images(segmap_decode, [self.img_height, self.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        segmap_img = tf.image.resize(segmap_decode, [self.img_height, self.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
         if self.augment_flag :
             augment_height_size = self.img_height + (30 if self.img_height == 256 else int(self.img_height * 0.1))
@@ -190,15 +189,15 @@ def preprocessing(x):
 def augmentation(image, segmap, augment_height, augment_width):
     seed = random.randint(0, 2 ** 31 - 1)
 
-    ori_image_shape = tf.shape(image)
+    ori_image_shape = tf.shape(input=image)
     image = tf.image.random_flip_left_right(image, seed=seed)
-    image = tf.image.resize_images(image, [augment_height, augment_width])
-    image = tf.random_crop(image, ori_image_shape, seed=seed)
+    image = tf.image.resize(image, [augment_height, augment_width])
+    image = tf.image.random_crop(image, ori_image_shape, seed=seed)
 
-    ori_segmap_shape = tf.shape(segmap)
+    ori_segmap_shape = tf.shape(input=segmap)
     segmap = tf.image.random_flip_left_right(segmap, seed=seed)
-    segmap = tf.image.resize_images(segmap, [augment_height, augment_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    segmap = tf.random_crop(segmap, ori_segmap_shape, seed=seed)
+    segmap = tf.image.resize(segmap, [augment_height, augment_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    segmap = tf.image.random_crop(segmap, ori_segmap_shape, seed=seed)
 
     return image, segmap
 
@@ -216,7 +215,7 @@ def inverse_transform(images):
 
 
 def imsave(images, size, path):
-    return misc.imsave(path, merge(images, size))
+    return imageio.imwrite(path, merge(images, size))
 
 def merge(images, size):
     h, w = images.shape[1], images.shape[2]
@@ -230,8 +229,24 @@ def merge(images, size):
     return img
 
 def show_all_variables():
-    model_vars = tf.trainable_variables()
-    slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+    model_vars = tf.compat.v1.trainable_variables()
+    #slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+    print('---------')
+    print('Variables: name (type shape) [size]')
+    print('---------')
+    total_size = 0
+    total_bytes = 0
+    for var in model_vars:
+        # if var.num_elements() is None or [] assume size 0.
+        var_size = var.get_shape().num_elements() or 0
+        var_bytes = var_size * var.dtype.size
+        total_size += var_size
+        total_bytes += var_bytes
+        print(var.name, var.get_shape(),
+            '[%d, bytes: %d]' % (var_size, var_bytes))
+    print('Total size of variables: %d' % total_size)
+    print('Total bytes of variables: %d' % total_bytes)
+    return total_size, total_bytes
 
 def check_folder(log_dir):
     if not os.path.exists(log_dir):
@@ -250,12 +265,12 @@ def get_one_hot(targets, nb_classes):
 def convert_from_color_segmentation(color_value_dict, arr_3d, tensor_type=False):
 
     if tensor_type :
-        arr_2d = tf.zeros(shape=[tf.shape(arr_3d)[0], tf.shape(arr_3d)[1]], dtype=tf.uint8)
+        arr_2d = tf.zeros(shape=[tf.shape(input=arr_3d)[0], tf.shape(input=arr_3d)[1]], dtype=tf.uint8)
 
         for c, i in color_value_dict.items() :
             color_array = tf.reshape(np.asarray(c, dtype=np.uint8), shape=[1, 1, -1])
-            condition = tf.reduce_all(tf.equal(arr_3d, color_array), axis=-1)
-            arr_2d = tf.where(condition, tf.cast(tf.fill(tf.shape(arr_2d), i), tf.uint8), arr_2d)
+            condition = tf.reduce_all(input_tensor=tf.equal(arr_3d, color_array), axis=-1)
+            arr_2d = tf.compat.v1.where(condition, tf.cast(tf.fill(tf.shape(input=arr_2d), i), tf.uint8), arr_2d)
 
         return arr_2d
 

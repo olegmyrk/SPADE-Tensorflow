@@ -82,7 +82,7 @@ class CorrelationCholesky(bijector.Bijector):
   """
 
   def __init__(self, validate_args=False, name='correlation_cholesky'):
-    with tf.name_scope(name) as name:
+    with tf.compat.v1.name_scope(name) as name:
       super(CorrelationCholesky, self).__init__(
           validate_args=validate_args,
           forward_min_event_ndims=1,
@@ -120,8 +120,8 @@ class CorrelationCholesky(bijector.Bijector):
     return fill_triangular.FillTriangular().inverse_event_shape_tensor(y_shape)
 
   def _forward(self, x):
-    x = tf.convert_to_tensor(x, name='x')
-    batch_shape = tf.shape(x)[:-1]
+    x = tf.convert_to_tensor(value=x, name='x')
+    batch_shape = tf.shape(input=x)[:-1]
 
     # Pad zeros on the top row and right column.
     y = fill_triangular.FillTriangular().forward(x)
@@ -131,20 +131,20 @@ class CorrelationCholesky(bijector.Bijector):
         tf.constant([[1, 0], [0, 1]], dtype=tf.int32)
     ],
                          axis=0)
-    y = tf.pad(y, paddings)
+    y = tf.pad(tensor=y, paddings=paddings)
 
     # Set diagonal to 1s.
-    n = tf.shape(y)[-1]
+    n = tf.shape(input=y)[-1]
     diag = tf.ones(tf.concat([batch_shape, [n]], axis=-1), dtype=x.dtype)
     y = tf.linalg.set_diag(y, diag)
 
     # Normalize each row to have Euclidean (L2) norm 1.
-    y /= tf.norm(y, axis=-1)[..., tf.newaxis]
+    y /= tf.norm(tensor=y, axis=-1)[..., tf.newaxis]
     return y
 
   def _inverse(self, y):
-    n = tf.shape(y)[-1]
-    batch_shape = tf.shape(y)[:-2]
+    n = tf.shape(input=y)[-1]
+    batch_shape = tf.shape(input=y)[:-2]
 
     # Extract the reciprocal of the row norms from the diagonal.
     diag = tf.linalg.diag_part(y)[..., tf.newaxis]
@@ -207,7 +207,7 @@ class CorrelationCholesky(bijector.Bijector):
     # `-k * log(s)`. The ILDJ is equal to negative FLDJ at the pre-image, or,
     # `k * log(s)`; where `s` is the reciprocal of the `k`th diagonal entry.
     #
-    n = tf.shape(y)[-1]
+    n = tf.shape(input=y)[-1]
     return -tf.reduce_sum(
-        tf.range(1, n + 1, dtype=y.dtype) * tf.math.log(tf.linalg.diag_part(y)),
+        input_tensor=tf.range(1, n + 1, dtype=y.dtype) * tf.math.log(tf.linalg.diag_part(y)),
         axis=-1)

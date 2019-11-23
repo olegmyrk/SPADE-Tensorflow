@@ -1,5 +1,5 @@
 import tensorflow as tf
-from keras.applications.vgg19 import preprocess_input
+from tensorflow.keras.applications.vgg19 import preprocess_input
 from ops import L1_mean_loss
 
 class VGGLoss(tf.keras.Model):

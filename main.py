@@ -105,10 +105,10 @@ def main():
       exit()
 
     # open session
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth=True
     config.allow_soft_placement=True
-    with tf.Session(config=config) as sess:
+    with tf.compat.v1.Session(config=config) as sess:
         gan = SPADE(sess, args)
 
         # build graph
