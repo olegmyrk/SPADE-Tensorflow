@@ -328,7 +328,7 @@ class SPADE(object):
             mean = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_mean')
             var = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_var')
 
-            return x, tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))
+            return x, [tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))]
 
     def generator_spatial(self, code, scaffold, z, reuse=False, scope=None):
         context = code
