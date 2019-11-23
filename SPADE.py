@@ -207,17 +207,17 @@ class SPADE(object):
             mvn_loc = fully_connected(context, units=out_channel, scope='mvn_loc')
             mvn_scale_diag = epsilon + tf.math.sigmoid(fully_connected(context, units=out_channel, scope='mvn_scale_logdiag'))
 
-            #import correlation_cholesky
-            #mvn_corr_bijector = correlation_cholesky.CorrelationCholesky(name=scope + "/CorrelationCholesky")
-            #mvn_corr = mvn_corr_bijector.forward(fully_connected(context, units=(out_channel-1)*out_channel/2, scope='mvn_corr_seed'))
-            #mvn_scale = tf.linalg.transpose(mvn_corr * tf.expand_dims(mvn_scale_diag,2)) * tf.expand_dims(mvn_scale_diag,2)
-            #mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
+            import correlation_cholesky
+            mvn_corr_bijector = correlation_cholesky.CorrelationCholesky(name=scope + "/CorrelationCholesky")
+            mvn_corr = mvn_corr_bijector.forward(fully_connected(context, units=(out_channel-1)*out_channel/2, scope='mvn_corr_seed'))
+            mvn_scale = tf.linalg.transpose(mvn_corr * tf.expand_dims(mvn_scale_diag,2)) * tf.expand_dims(mvn_scale_diag,2)
+            mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
             #_, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, scope='mvn_scale_seed'), [batch_size, out_channel, out_channel]), full_matrices=True)
             #mvn_scale = tf.linalg.matmul(tf.matmul(mvn_scale_u, mvn_scale_diag), tf.linalg.transpose(mvn_scale_u))
             #mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
-            mvn_dist = tfd.MultivariateNormalDiag(mvn_loc, mvn_scale_diag, name=scope + "/MultivariateNormalDiag")
+            #mvn_dist = tfd.MultivariateNormalDiag(mvn_loc, mvn_scale_diag, name=scope + "/MultivariateNormalDiag")
 
             dist = tfd.TransformedDistribution(
                             distribution=mvn_dist,
