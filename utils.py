@@ -77,7 +77,7 @@ class Image_data:
             celeba = key_to_celeba[key]
             identity = celeba_to_identity[celeba]
             for other_celeba in identity_to_celeba[identity]:
-                if celeba <> other_celeba and other_celeba in celeba_to_key:
+                if celeba != other_celeba and other_celeba in celeba_to_key:
                     other_key = celeba_to_key[other_celeba]
                     #print("CelebA:", key, celeba, identity, other_celeba, other_key)
                     self.ctximage.append(self.img_dataset_path + "/" + other_key + ".jpg")
