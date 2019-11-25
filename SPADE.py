@@ -631,7 +631,7 @@ class SPADE(object):
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
         supercode_stop_gradient = lambda x: x
-        code_stop_gradient = tf.stop_gradient
+        code_stop_gradient = lambda x: x
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
@@ -799,8 +799,8 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.001*e_nondet_klctx2_loss
-            self.e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + (0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.001*e_det_klctx2_loss
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.001*e_nondet_klctx2_loss
+            self.e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + (0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.001*e_det_klctx2_loss
             self.de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
