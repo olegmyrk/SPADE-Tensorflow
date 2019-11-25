@@ -806,7 +806,7 @@ class SPADE(object):
 
         """ Result Image """
         self.fake_det_x = fake_det_x_stats[0]
-        self.fake_det_x_var = tf.exp(fake_det_x_stats[0])
+        self.fake_det_x_var = tf.exp(fake_det_x_stats[1])
         self.fake_nondet_x = fake_nondet_x_output
         self.random_fake_det_x = random_fake_det_x_stats[0]
         self.random_fake_nondet_x = random_fake_nondet_x_output
