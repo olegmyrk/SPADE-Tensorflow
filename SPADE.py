@@ -582,15 +582,18 @@ class SPADE(object):
         self.img_class.preprocess()
         self.color_value_dict = self.img_class.color_value_dict
         self.segmap_ch = len(self.img_class.color_value_dict)
- 
+
+    def prepare_model(self):
+        self.vgg_loss = VGGLoss() 
+
     def execute_model(self, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary):
         """ Define Generator, Discriminator """
         prior_det_code_mean, prior_det_code_logvar = self.prior_code()
         x_det_code_mean, x_det_code_logvar = self.encoder_code(real_x, scope='encoder_det_code')
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
-        supercode_stop_gradient = tf.stop_gradient
-        code_stop_gradient = tf.stop_gradient
+        supercode_stop_gradient = lambda x: x
+        code_stop_gradient = lambda x: x 
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
@@ -679,14 +682,14 @@ class SPADE(object):
 
         """ Define Loss """
         g_nondet_ce_loss = L1_loss(real_x, fake_nondet_x_output)
-        #g_nondet_vgg_loss = VGGLoss()(real_x, fake_nondet_x_output)
+        #g_nondet_vgg_loss = self.vgg_loss(fake_nondet_x_output, real_x)
         g_nondet_adv_loss = generator_loss(self.gan_type, fake_nondet_logit)
         g_nondet_feature_loss = feature_loss(nondet_real_logit, fake_nondet_logit)
         g_nondet_reg_loss = regularization_loss('generator_nondet')
 
-        #g_det_ce_loss = L2_loss(real_x, fake_det_x_logits)
+        #g_det_ce_loss = L2_loss(real_x, fake_det_x_stats[0])
         g_det_ce_loss = gaussian_loss(real_x, *fake_det_x_stats)
-        #g_det_vgg_loss = VGGLoss()(real_x, fake_det_x_stats[0])
+        #g_det_vgg_loss = self.vgg_loss(fake_det_x_stats[0], real_x)
         g_det_reg_loss = regularization_loss('generator_det')
 
         #g_nondet_code_ce_loss = L2_mean_loss(code_stop_gradient(fake_nondet_x_code), fake_nondet_x_code_mean)
@@ -744,14 +747,14 @@ class SPADE(object):
         de_nondet_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_real_logit, code_nondet_fake_logit)
         de_nondet_reg_loss = regularization_loss('discriminator_nondet_code')
 
-        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 0*g_nondet_feature_loss + 10*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.001*e_nondet_klctx2_loss
-        e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + (e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.001*e_det_klctx2_loss
+        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.001*e_nondet_klctx2_loss
+        e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + (0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.001*e_det_klctx2_loss
         de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
         d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
         """ Result Image """
         fake_det_x = fake_det_x_stats[0]
-        fake_det_x_var = tf.exp(fake_det_x_stats[0])
+        fake_det_x_var = tf.exp(fake_det_x_stats[1])
         fake_nondet_x = fake_nondet_x_output
         random_fake_det_x = random_fake_det_x_stats[0]
         random_fake_nondet_x = random_fake_nondet_x_output
@@ -837,7 +840,7 @@ class SPADE(object):
             real_x = tf.compat.v1.get_variable('real_x', shape=[self.batch_size, self.img_height, self.img_width, self.img_ch], initializer=tf.compat.v1.constant_initializer(0.0), trainable=False)
             real_x_segmap = tf.compat.v1.get_variable('real_x_segmap', shape=[self.batch_size, self.img_height, self.img_width], initializer=tf.compat.v1.constant_initializer(0), trainable=False)
             real_x_segmap_onehot = tf.compat.v1.get_variable('real_x_segmap_onehot', shape=[self.batch_size, self.img_height, self.img_width, self.segmap_ch], initializer=tf.compat.v1.constant_initializer(0), trainable=False)
-
+        
         return self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=False)
   
     def build_optimizers(self):
@@ -860,7 +863,7 @@ class SPADE(object):
                             lambda: 1.0,
                             lambda: tf.math.divide(tf.math.subtract(step_recomp, decay_step), tf.math.subtract(max_step, decay_step))
                         )
-                    return tf.math.multiply(step_recomp, multiplier, name=name)
+                    return tf.math.multiply(initial_learning_rate, multiplier, name=name)
 
         if self.decay_flag:
             decay_fn = lambda lr: LinearDecay(lr, self.epoch*self.iteration, self.decay_epoch*self.iteration)
@@ -908,31 +911,42 @@ class SPADE(object):
         sys.stdout.flush()
 
     def report_outputs(self, epoch, idx, outputs):
+        print("O1", time.time())
         [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_nondet_x, random_fake_det_x, random_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_nondet_x] = outputs
 
-        save_images(real_ctx, [self.batch_size, 1],
+        print("O2", time.time())
+        save_images(real_ctx.numpy(), [self.batch_size, 1],
                    './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-        save_images(real_x, [self.batch_size, 1],
+        print("O3", time.time())
+        save_images(real_x.numpy(), [self.batch_size, 1],
                    './{}/real_image_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-        save_images(fake_det_x, [self.batch_size, 1],
+        print("O4", time.time())
+        save_images(fake_det_x.numpy(), [self.batch_size, 1],
                     './{}/fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
-        imsave(fake_det_x_var, [self.batch_size, 1],
+        print("O5", time.time())
+        imsave(image_to_uint8(fake_det_x_var.numpy()), [self.batch_size, 1],
                     './{}/fake_det_var_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-        save_images(fake_nondet_x, [self.batch_size, 1],
+        print("O6", time.time())
+        save_images(fake_nondet_x.numpy(), [self.batch_size, 1],
                     './{}/fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-        save_images(random_fake_det_x, [self.batch_size, 1],
+        print("O7", time.time())
+        save_images(random_fake_det_x.numpy(), [self.batch_size, 1],
                     './{}/random_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
-        save_images(random_fake_nondet_x, [self.batch_size, 1],
+        print("O8", time.time())
+        save_images(random_fake_nondet_x.numpy(), [self.batch_size, 1],
                     './{}/random_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
-        save_images(random_dist_fake_det_x, [self.batch_size, 1],
+        print("O9", time.time())
+        save_images(random_dist_fake_det_x.numpy(), [self.batch_size, 1],
                     './{}/random_dist_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
-        save_images(random_dist_fake_nondet_x, [self.batch_size, 1],
+        print("O10", time.time())
+        save_images(random_dist_fake_nondet_x.numpy(), [self.batch_size, 1],
                     './{}/random_dist_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+        print("O11", time.time())
 
     def train(self):
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
@@ -940,81 +954,94 @@ class SPADE(object):
         dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*self.batch_size).batch(self.batch_size, drop_remainder=True)
         dataset = dataset.prefetch(self.batch_size)
         
-        #distribute_strategy = tf.distribute.MirroredStrategy()
-        #dataset = distribute_strategy.experimental_distribute_dataset(dataset)
-        #with distribute_strategy.scope():
+        distribute_strategy = tf.distribute.MirroredStrategy()
+        dataset = distribute_strategy.experimental_distribute_dataset(dataset)
+        with distribute_strategy.scope():
+            # build global step
+            global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA) 
 
-        # build global step
-        global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA) 
+            # prepare model
+            self.prepare_model()
 
-        # build graph
-        self.build_model()
+            # build model
+            self.build_model()
 
-        # show network architecture
-        show_all_variables()
+            # show network architecture
+            show_all_variables()
 
-        # build optimizers
-        self.build_optimizers()
+            # build optimizers
+            self.build_optimizers()
 
-        # saver to save model
-        checkpoint = tf.train.Checkpoint(**dict([(var.name, var) for var in tf.compat.v1.trainable_variables()]))
-        checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
+            # saver to save model
+            checkpoint = tf.train.Checkpoint(**dict([(var.name, var) for var in tf.compat.v1.trainable_variables()]))
+            checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
 
-        # restore check-point if it exits
-        if checkpoint_manager.latest_checkpoint:
-            checkpoint.restore(checkpoint_manager.latest_checkpoint).assert_nontrivial_match()
-            print(" [*] Load SUCCESS")
-        else:
-            print(" [!] Load failed...")
+            # restore check-point if it exits
+            if checkpoint_manager.latest_checkpoint:
+                checkpoint.restore(checkpoint_manager.latest_checkpoint).expect_partial()
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
 
-        # record start time
-        start_time = time.time()
+            # record start time
+            start_time = time.time()
 
-        @tf.function
-        def train_step(global_step, inputs):
-            def step_fn(global_step, inputs):
-                [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot] = inputs
-                with tf.GradientTape(persistent=True) as tape:
-                    losses, outputs = self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=True)
+            @tf.function
+            def train_step(global_step, inputs):
+                def step_fn(global_step, inputs):
+                    [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot] = inputs
+                    with tf.GradientTape(persistent=True) as tape:
+                        losses, outputs = self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=True)
 
-                [g_loss, e_loss, de_loss, d_loss] = losses
-               
-                g_gradients = tape.gradient(g_loss, self.G_vars)
-                e_gradients = tape.gradient(e_loss, self.E_vars)
-                de_gradients = tape.gradient(de_loss, self.DE_vars)
-                d_gradients = tape.gradient(d_loss, self.D_vars)
+                    [g_loss, e_loss, de_loss, d_loss] = losses
+                   
+                    g_gradients = tape.gradient(g_loss, self.G_vars)
+                    e_gradients = tape.gradient(e_loss, self.E_vars)
+                    de_gradients = tape.gradient(de_loss, self.DE_vars)
+                    d_gradients = tape.gradient(d_loss, self.D_vars)
 
-                self.G_optim.apply_gradients(zip(g_gradients, self.G_vars))
-                self.E_optim.apply_gradients(zip(e_gradients, self.E_vars))
-                self.DE_optim.apply_gradients(zip(de_gradients, self.DE_vars))
-                self.D_optim.apply_gradients(zip(d_gradients, self.D_vars))
+                    self.G_optim.apply_gradients(zip(g_gradients, self.G_vars))
+                    self.E_optim.apply_gradients(zip(e_gradients, self.E_vars))
+                    self.DE_optim.apply_gradients(zip(de_gradients, self.DE_vars))
+                    self.D_optim.apply_gradients(zip(d_gradients, self.D_vars))
 
-                global_step.assign_add(1)
+                    global_step.assign_add(1)
 
-                return global_step, losses, outputs 
-            #return distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
-            return step_fn(global_step, inputs)
+                    return global_step, losses, outputs 
+                #return step_fn(global_step, inputs)
+                return distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
 
-        # training loop
-        for inputs in dataset:
-            with self.writer.as_default():
-                result = train_step(global_step, inputs)
-            self.writer.flush()
-            
-            [counter, losses, outputs] = result
-            epoch = (counter-1) // self.iteration 
-            idx = (counter-1) % self.iteration
+            # training loop
+            for inputs in dataset:
+                print("L1", time.time())
+                with self.writer.as_default():
+                    result = train_step(global_step, inputs)
 
-            self.report_losses(epoch, idx, time.time() - start_time, losses)
+                print("L2", time.time())
+                self.writer.flush()
 
-            if np.mod(idx+1, self.print_freq) == 0:
-                self.report_outputs(epoch, idx, outputs)
+                print("L3", time.time())
+                [counter, losses, outputs] = result
+                
+                print("L4", time.time())
+                epoch = (counter-1) // self.iteration 
+                idx = (counter-1) % self.iteration
 
-            if counter-1 > 0 and np.mod(counter-1, self.save_freq) == 0:
-                checkpoint_manager.save()
+                print("L5", time.time())
+                self.report_losses(epoch, idx, time.time() - start_time, losses)
 
-        # save model for final step
-        checkpoint_manager.save()
+                print("L6", time.time())
+                if np.mod(idx+1, self.print_freq) == 0:
+                    self.report_outputs(epoch, idx, outputs)
+
+                print("L7", time.time())
+                if counter-1 > 0 and np.mod(counter-1, self.save_freq) == 0:
+                    checkpoint_manager.save()
+                
+                print("L8", time.time())
+
+            # save model for final step
+            checkpoint_manager.save()
 
     @property
     def model_dir(self):

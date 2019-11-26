@@ -208,19 +208,21 @@ def save_segmaps(images, color_map, size, image_path):
     return imsave(result, size, image_path)
 
 def save_images(images, size, image_path):
-    return imsave(inverse_transform(images), size, image_path)
+    return imsave(image_to_uint8(inverse_transform(images)), size, image_path)
+
+def image_to_uint8(image):
+    return (256*image).astype(np.uint8)
 
 def inverse_transform(images):
     return (images+1.) / 2
 
-
 def imsave(images, size, path):
-    return imageio.imwrite(path, merge(images, size))
+    return imageio.imwrite(path, merge(images, size), compress_level=1)
 
 def merge(images, size):
     h, w = images.shape[1], images.shape[2]
     c = images.shape[3]
-    img = np.zeros((h * size[0], w * size[1], c))
+    img = np.zeros((h * size[0], w * size[1], c), dtype=images.dtype)
     for idx, image in enumerate(images):
         i = idx % size[1]
         j = idx // size[1]
