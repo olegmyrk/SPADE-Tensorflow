@@ -67,6 +67,11 @@ weight_regularizer_fully = None
 # Layer
 ##################################################################################
 
+def get_trainable_variable(name, shape=None, dtype=None, initializer=None, regularizer=None):
+  variable = tf.compat.v1.get_variable(name, shape=shape, dtype=dtype, initializer=initializer, regularizer=regularizer)
+  tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, variable)
+  return variable
+
 def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True, sn=False, scope='conv_0'):
     with tf.compat.v1.variable_scope(scope):
         if pad > 0:
@@ -87,12 +92,12 @@ def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True,
                 x = tf.pad(tensor=x, paddings=[[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]], mode='REFLECT')
 
         if sn:
-            w = tf.compat.v1.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
+            w = get_trainable_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
                                 regularizer=weight_regularizer)
             x = tf.nn.conv2d(input=x, filters=spectral_norm(w),
                              strides=[1, stride, stride, 1], padding='VALID')
             if use_bias:
-                bias = tf.compat.v1.get_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
+                bias = get_trainable_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
                 x = tf.nn.bias_add(x, bias)
 
         else:
@@ -123,7 +128,7 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
 
             with tf.compat.v1.variable_scope('x'):
                 if sn:
-                    w = tf.compat.v1.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
+                    w = get_trainable_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
                                         initializer=weight_init, regularizer=weight_regularizer)
                     x = tf.nn.conv2d(input=x, filters=spectral_norm(w), strides=[1, stride, stride, 1], padding=padding)
                 else:
@@ -134,17 +139,17 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
                 x = x * mask_ratio
 
                 if use_bias:
-                    bias = tf.compat.v1.get_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
+                    bias = get_trainable_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
 
                     x = tf.nn.bias_add(x, bias)
                     x = x * update_mask
         else:
             if sn:
-                w = tf.compat.v1.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
+                w = get_trainable_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
                                     initializer=weight_init, regularizer=weight_regularizer)
                 x = tf.nn.conv2d(input=x, filters=spectral_norm(w), strides=[1, stride, stride, 1], padding=padding)
                 if use_bias:
-                    bias = tf.compat.v1.get_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
+                    bias = get_trainable_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
 
                     x = tf.nn.bias_add(x, bias)
             else:
@@ -162,10 +167,10 @@ def fully_connected(x, units, use_bias=True, sn=False, scope='linear'):
         channels = shape[-1]
 
         if sn:
-            w = tf.compat.v1.get_variable("kernel", [channels, units], tf.float32,
+            w = get_trainable_variable("kernel", [channels, units], tf.float32,
                                 initializer=weight_init, regularizer=weight_regularizer_fully)
             if use_bias:
-                bias = tf.compat.v1.get_variable("bias", [units],
+                bias = get_trainable_variable("bias", [units],
                                        initializer=tf.compat.v1.constant_initializer(0.0))
 
                 x = tf.matmul(x, spectral_norm(w)) + bias
@@ -231,8 +236,8 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
 
         x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
 
-        gamma = tf.compat.v1.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
-        beta = tf.compat.v1.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        gamma = get_trainable_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        beta = get_trainable_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
 
         x = x * (1 + gamma) + beta
 
@@ -398,8 +403,8 @@ def batch_norm(x, epsilon=1e-5, scope=None):
     with tf.compat.v1.variable_scope(scope):
         mean, var = tf.nn.moments(x=x, axes=list(range(len(x.get_shape())-1)), keepdims=True)
         shape = mean.get_shape().as_list()
-        offset = tf.compat.v1.get_variable("offset", initializer=np.zeros(shape, dtype='float32'))
-        scale = tf.compat.v1.get_variable("scale", initializer=np.ones(shape, dtype='float32'))
+        offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))
+        scale = get_trainable_variable("scale", initializer=np.ones(shape, dtype='float32'))
         result = tf.nn.batch_normalization(x, mean, var, offset, scale, epsilon)
     return result
 
@@ -457,7 +462,7 @@ def spectral_norm(w, iteration=1):
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
-    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False)
+    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
 
     u_hat = u
     v_hat = None

@@ -104,31 +104,25 @@ def main():
     if args is None:
       exit()
 
-    # open session
-    config = tf.compat.v1.ConfigProto()
-    config.gpu_options.allow_growth=True
-    config.allow_soft_placement=True
-    with tf.compat.v1.Session(config=config) as sess:
-        gan = SPADE(sess, args)
+    # Create GAN
+    gan = SPADE(args)
+   
+    # prepare dataset
+    gan.prepare_dataset()
 
-        # build graph
-        gan.build_model()
+    if args.phase == 'train' :
+        gan.train()
+        print(" [*] Training finished!")
 
-        # show network architecture
-        show_all_variables()
+    if args.phase == 'random' :
+        gan.random_test()
+        print(" [*] Random test finished!")
 
-        if args.phase == 'train' :
-            gan.train()
-            print(" [*] Training finished!")
-
-        if args.phase == 'random' :
-            gan.random_test()
-            print(" [*] Random test finished!")
-
-        if args.phase == 'guide' :
-            gan.guide_test()
-            print(" [*] Guide test finished")
+    if args.phase == 'guide' :
+        gan.guide_test()
+        print(" [*] Guide test finished")
 
 
 if __name__ == '__main__':
+    tf.get_logger().setLevel('DEBUG')
     main()
