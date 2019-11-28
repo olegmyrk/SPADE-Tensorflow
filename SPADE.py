@@ -177,7 +177,7 @@ class SPADE(object):
         var = tf.zeros([batch_size, out_channel])
         return mean, var
 
-    def prior_code_dist(self, code, epsilon=1e-3, reuse=False, scope=None):
+    def prior_code_dist(self, code, epsilon=1e-8, reuse=False, scope=None):
         context = code
         batch_size = self.batch_size
         out_channel = self.ch * 4
@@ -225,7 +225,7 @@ class SPADE(object):
                         )
         return dist
 
-    def encoder_supercode(self, x_init, epsilon=1e-3, reuse=False, scope=None):
+    def encoder_supercode(self, x_init, epsilon=1e-8, reuse=False, scope=None):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
@@ -243,7 +243,7 @@ class SPADE(object):
 
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
-    def generator_code(self, code, x_init, epsilon=1e-3, reuse=False, scope=None):
+    def generator_code(self, code, x_init, epsilon=1e-8, reuse=False, scope=None):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
@@ -262,7 +262,7 @@ class SPADE(object):
 
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
-    def generator(self, code, z=None, epsilon=1e-3, reuse=False, scope="generator"):
+    def generator(self, code, z=None, epsilon=1e-8, reuse=False, scope="generator"):
         context = code
 
         context_depth = 8
