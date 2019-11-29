@@ -438,7 +438,7 @@ class SPADE(object):
             x = x_init
             
             #x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
-            x = constin_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
+            x = constin_resblock(x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
 
             #x = conv(scaffold, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv')
             #x = instance_norm(x, scope='ins_norm')
