@@ -385,8 +385,8 @@ class SPADE(object):
 
             for i in range(4) :
                 x = up_sample(x, scale_factor=2)
-                x = cspade_resblock(context, scaffold, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
-                #x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
+                #x = cspade_resblock(context, scaffold, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
+                x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
 
                 channel = channel // 2
                 # 512 -> 256 -> 128 -> 64
@@ -593,7 +593,7 @@ class SPADE(object):
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
         supercode_stop_gradient = lambda x: x
-        code_stop_gradient = lambda x: x 
+        code_stop_gradient = lambda x: x
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
@@ -918,6 +918,10 @@ class SPADE(object):
         save_images(real_ctx.numpy(), [self.batch_size, 1],
                    './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
+        print("O2S", time.time())
+        imsave(real_x_segmap.numpy(), [self.batch_size, 1],
+                    './{}/real_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
+
         print("O3", time.time())
         save_images(real_x.numpy(), [self.batch_size, 1],
                    './{}/real_image_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
@@ -958,7 +962,7 @@ class SPADE(object):
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
         with distribute_strategy.scope():
             # build global step
-            global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA) 
+            global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, trainable=False)
 
             # prepare model
             self.prepare_model()
@@ -973,7 +977,7 @@ class SPADE(object):
             self.build_optimizers()
 
             # saver to save model
-            checkpoint = tf.train.Checkpoint(**dict([(var.name, var) for var in tf.compat.v1.trainable_variables()]))
+            checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([(var.name, var) for var in tf.compat.v1.global_variables()]))
             checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
 
             # restore check-point if it exits
