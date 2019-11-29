@@ -162,7 +162,7 @@ class SPADE(object):
 
         return x, channel
 
-    def encoder_code(self, x_init, epsilon=True, reuse=False, scope=None):
+    def encoder_code(self, x_init, epsilon=1e-8, reuse=False, scope=None):
         with tf.variable_scope(scope, reuse=reuse):
             x, channel = self.encoder_base(x_init, self.ch)
 
