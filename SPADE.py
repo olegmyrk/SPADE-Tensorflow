@@ -168,7 +168,8 @@ class SPADE(object):
 
             mean = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_mean')
             var = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_var')
-            return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
+            #return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
+            return mean, var 
 
     def prior_code(self, channel_multiplier=4):
         batch_size = self.batch_size
@@ -241,7 +242,8 @@ class SPADE(object):
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
             var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
 
-            return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
+            #return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
+            return mean, var
 
     def generator_code(self, code, x_init, epsilon=1e-8, reuse=False, scope=None):
         out_channel = self.ch*4
