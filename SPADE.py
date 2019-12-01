@@ -600,7 +600,7 @@ class SPADE(object):
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
         x_det_ctxcode_mean, x_det_ctxcode_logvar = self.encoder_code(real_ctx, scope='encoder_det_ctxcode')
         fake_det_x_ctxcode = z_sample(x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        x_det_codectx_mean, x_det_codectx_logvar = self.encoder_code(self.real_ctx, reuse=True, scope='encoder_det_code')
+        x_det_codectx_mean, x_det_codectx_logvar = self.encoder_code(real_ctx, reuse=True, scope='encoder_det_code')
         fake_det_x_codectx = z_sample(x_det_codectx_mean, x_det_codectx_logvar)
         fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, tf.stop_gradient(fake_det_x_codectx)],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, scope="generator_det_code")
@@ -627,7 +627,7 @@ class SPADE(object):
         fake_nondet_x_supercode = z_sample(x_nondet_supercode_mean, x_nondet_supercode_logvar)
         x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar = self.encoder_code(real_ctx, scope='encoder_nondet_ctxcode')
         fake_nondet_x_ctxcode = z_sample(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        x_nondet_codectx_mean, x_nondet_codectx_logvar = self.encoder_code(self.real_ctx, reuse=True, scope='encoder_nondet_code')
+        x_nondet_codectx_mean, x_nondet_codectx_logvar = self.encoder_code(real_ctx, reuse=True, scope='encoder_nondet_code')
         fake_nondet_x_codectx = z_sample(x_nondet_codectx_mean, x_nondet_codectx_logvar)
         fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, tf.stop_gradient(fake_nondet_x_codectx)],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
@@ -752,7 +752,7 @@ class SPADE(object):
         de_nondet_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_real_logit, code_nondet_fake_logit)
         de_nondet_reg_loss = regularization_loss('discriminator_nondet_code')
 
-        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + tf.zeros_like(e_nondet_adv_loss) + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 0*g_nondet_feature_loss + 0*g_nondet_ce_loss + e_nondet_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
         e_loss = 10*g_det_ce_loss + g_det_reg_loss + 0*e_det_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
         de_loss = de_nondet_adv_loss + de_nondet_reg_loss + de_det_adv_loss + de_det_reg_loss
         d_loss = d_nondet_adv_loss + d_nondet_reg_loss
@@ -903,68 +903,74 @@ class SPADE(object):
         self.DE_vars = [var for var in t_vars if 'discriminator_det_code' in var.name or 'discriminator_nondet_code' in var.name]
         self.D_vars = [var for var in t_vars if 'discriminator_nondet_x' in var.name]
 
-    def report_losses(self, epoch, idx, duration, losses):
+    def report_losses(self, counter, epoch, idx, duration, losses):
         [g_loss, e_loss, de_loss, d_loss] = losses
-        print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_loss: %.8f" % (
-            epoch, idx, self.iteration, duration, g_loss))
-        print("Epoch: [%2d] [%5d/%5d] time: %4.4f e_loss: %.8f" % (
-            epoch, idx, self.iteration, duration, e_loss))
-        print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_loss: %.8f" % (
-            epoch, idx, self.iteration, duration, de_loss))
-        print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f" % (
-            epoch, idx, self.iteration, duration, d_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f g_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, g_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f e_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, e_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f de_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, de_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, d_loss))
         sys.stdout.flush()
 
     def report_outputs(self, epoch, idx, outputs):
         print("O1", time.time())
         [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_nondet_x, random_fake_det_x, random_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_nondet_x] = outputs
 
+        total_batch_size = real_ctx.get_shape()[0]
+
         print("O2", time.time())
-        save_images(real_ctx.numpy(), [self.batch_size, 1],
+        save_images(real_ctx.numpy(), [total_batch_size, 1],
                    './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
         print("O2S", time.time())
-        imsave(real_x_segmap.numpy(), [self.batch_size, 1],
+        imsave(real_x_segmap.numpy(), [total_batch_size, 1],
                     './{}/real_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
         print("O3", time.time())
-        save_images(real_x.numpy(), [self.batch_size, 1],
+        save_images(real_x.numpy(), [total_batch_size, 1],
                    './{}/real_image_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
         print("O4", time.time())
-        save_images(fake_det_x.numpy(), [self.batch_size, 1],
+        save_images(fake_det_x.numpy(), [total_batch_size, 1],
                     './{}/fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
         print("O5", time.time())
-        imsave(image_to_uint8(fake_det_x_var.numpy()), [self.batch_size, 1],
+        imsave(image_to_uint8(fake_det_x_var.numpy()), [total_batch_size, 1],
                     './{}/fake_det_var_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
         print("O6", time.time())
-        save_images(fake_nondet_x.numpy(), [self.batch_size, 1],
+        save_images(fake_nondet_x.numpy(), [total_batch_size, 1],
                     './{}/fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
         print("O7", time.time())
-        save_images(random_fake_det_x.numpy(), [self.batch_size, 1],
+        save_images(random_fake_det_x.numpy(), [total_batch_size, 1],
                     './{}/random_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
         print("O8", time.time())
-        save_images(random_fake_nondet_x.numpy(), [self.batch_size, 1],
+        save_images(random_fake_nondet_x.numpy(), [total_batch_size, 1],
                     './{}/random_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
         print("O9", time.time())
-        save_images(random_dist_fake_det_x.numpy(), [self.batch_size, 1],
+        save_images(random_dist_fake_det_x.numpy(), [total_batch_size, 1],
                     './{}/random_dist_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
         print("O10", time.time())
-        save_images(random_dist_fake_nondet_x.numpy(), [self.batch_size, 1],
+        save_images(random_dist_fake_nondet_x.numpy(), [total_batch_size, 1],
                     './{}/random_dist_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
         print("O11", time.time())
 
     def train(self):
+        distribute_strategy = tf.distribute.MirroredStrategy()
+        distributed_batch_size = distribute_strategy.num_replicas_in_sync * self.batch_size
+        print("Distributed replicas: %s" % (distribute_strategy.num_replicas_in_sync,))
+        print("Distributed batch size: %s" % (distributed_batch_size,))
+
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
-        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*self.batch_size).batch(self.batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(self.batch_size)
-        
-        distribute_strategy = tf.distribute.MirroredStrategy()
+        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size, drop_remainder=True)
+        dataset = dataset.prefetch(distributed_batch_size)
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
+
         with distribute_strategy.scope():
             # build global step
             global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, trainable=False)
@@ -1017,8 +1023,26 @@ class SPADE(object):
                     global_step.assign_add(1)
 
                     return global_step, losses, outputs 
-                #return step_fn(global_step, inputs)
-                return distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
+                
+                print("S0", time.time()) 
+                result = distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
+
+                print("S1", time.time()) 
+                result_global_step, result_losses, result_outputs = result
+               
+                print("S2", time.time(), result_global_step)
+                print("S2", time.time(), result_losses)
+                print("S2", time.time(), result_outputs)
+ 
+                reduced_global_step = tf.reduce_mean(distribute_strategy.experimental_local_results(result_global_step))
+                print("S3", time.time(), reduced_global_step)
+                reduced_losses = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses))
+                print("S4", time.time(), reduced_losses)
+                reduced_outputs = list(map(lambda result_output: tf.concat(distribute_strategy.experimental_local_results(result_output), axis=0), result_outputs))
+                print("S5", time.time(), reduced_outputs)
+
+                return reduced_global_step, reduced_losses, reduced_outputs
+
 
             # training loop
             for inputs in dataset:
@@ -1031,13 +1055,13 @@ class SPADE(object):
 
                 print("L3", time.time())
                 [counter, losses, outputs] = result
-                
+
                 print("L4", time.time())
                 epoch = (counter-1) // self.iteration 
                 idx = (counter-1) % self.iteration
 
                 print("L5", time.time())
-                self.report_losses(epoch, idx, time.time() - start_time, losses)
+                self.report_losses(counter, epoch, idx, time.time() - start_time, losses)
 
                 print("L6", time.time())
                 if np.mod(idx+1, self.print_freq) == 0:
