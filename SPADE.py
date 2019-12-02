@@ -818,13 +818,13 @@ class SPADE(object):
         """ Result Image """
         self.fake_det_x = fake_det_x_stats[0][0]
         self.fake_det_x_var = tf.exp(fake_det_x_stats[0][1])
-        self.fake_det_x_segmap = tf.distributions.Categorical(logits=fake_det_x_stats[1]).sample()
+        self.fake_det_x_segmap = tfd.Categorical(logits=fake_det_x_stats[1]).sample()
         self.fake_nondet_x = fake_nondet_x_output
         self.random_fake_det_x = random_fake_det_x_stats[0][0]
-        self.random_fake_det_x_segmap = tf.distributions.Categorical(logits=random_fake_det_x_stats[1]).sample()
+        self.random_fake_det_x_segmap = tfd.Categorical(logits=random_fake_det_x_stats[1]).sample()
         self.random_fake_nondet_x = random_fake_nondet_x_output
         self.random_dist_fake_det_x = random_dist_fake_det_x_stats[0][0]
-        self.random_dist_fake_det_x_segmap = tf.distributions.Categorical(logits=random_dist_fake_det_x_stats[1]).sample()
+        self.random_dist_fake_det_x_segmap = tfd.Categorical(logits=random_dist_fake_det_x_stats[1]).sample()
         self.random_dist_fake_nondet_x = random_dist_fake_nondet_x_output
 
         """ Test """
