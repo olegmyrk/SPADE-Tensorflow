@@ -842,7 +842,7 @@ class SPADE(object):
             summary_de_nondet_reg_loss = tf.summary.scalar("de_nondet_reg_loss", de_nondet_reg_loss, step=global_step)
 
         losses = (g_loss, e_loss, de_loss, d_loss)
-        outputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, fake_det_x_segmap, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x)
+        outputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x)
 
         return losses, outputs
 
