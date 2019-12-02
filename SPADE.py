@@ -717,17 +717,17 @@ class SPADE(object):
                 
         e_nondet_adv_loss = generator_loss(self.code_gan_type, code_nondet_prior_fake_logit)
         e_nondet_kl_loss = kl_loss(x_nondet_code_mean, x_nondet_code_logvar)
-        e_nondet_gen_loss = gaussian_loss(fake_nondet_x_code, prior_nondet_code_mean, prior_nondet_code_logvar)
+        e_nondet_prior_loss = gaussian_loss(fake_nondet_x_code, prior_nondet_code_mean, prior_nondet_code_logvar)
         e_nondet_negent_loss = negent_loss(x_nondet_code_mean, x_nondet_code_logvar)
         e_nondet_prior2_loss = -tf.reduce_mean(input_tensor=prior_dist_nondet_code_dist.log_prob(tf.stop_gradient(fake_nondet_x_code))) / int(fake_nondet_x_code.get_shape()[-1])
         e_nondet_kl2_loss = (e_nondet_prior2_loss + e_nondet_negent_loss)
         e_nondet_reg_loss = regularization_loss('encoder_nondet_code')
         
         e_nondet_klctx_loss = kl_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        e_nondet_genctx_loss = gaussian_loss(fake_nondet_x_ctxcode, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
+        e_nondet_priorctx_loss = gaussian_loss(fake_nondet_x_ctxcode, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         e_nondet_negentctx_loss = negent_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
         #e_nondet_klctx2_loss = kl_loss2(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
-        e_nondet_klctx2_loss = (e_nondet_genctx_loss + e_nondet_negentctx_loss)
+        e_nondet_klctx2_loss = (e_nondet_priorctx_loss + e_nondet_negentctx_loss)
 
         #g_det_code_ce_loss = L2_mean_loss(code_stop_gradient(fake_det_x_code), fake_det_x_code_mean)
         g_det_code_ce_loss = gaussian_loss(code_stop_gradient(fake_det_x_code), fake_det_x_code_mean, fake_det_x_code_logvar)
@@ -740,17 +740,17 @@ class SPADE(object):
 
         e_det_adv_loss = generator_loss(self.code_gan_type, code_det_prior_fake_logit)
         e_det_kl_loss = kl_loss(x_det_code_mean, x_det_code_logvar)
-        e_det_gen_loss = gaussian_loss(fake_det_x_code, prior_det_code_mean, prior_det_code_logvar)
+        e_det_prior_loss = gaussian_loss(fake_det_x_code, prior_det_code_mean, prior_det_code_logvar)
         e_det_negent_loss = negent_loss(x_det_code_mean, x_det_code_logvar)
         e_det_prior2_loss = -tf.reduce_mean(input_tensor=prior_dist_det_code_dist.log_prob(tf.stop_gradient(fake_det_x_code))) / int(fake_det_x_code.get_shape()[-1])
         e_det_kl2_loss = (e_det_prior2_loss + e_det_negent_loss)
         e_det_reg_loss = regularization_loss('encoder_det_code')
         
         e_det_klctx_loss = kl_loss(x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        e_det_genctx_loss = gaussian_loss(fake_det_x_ctxcode, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
+        e_det_priorctx_loss = gaussian_loss(fake_det_x_ctxcode, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         e_det_negentctx_loss = negent_loss(x_det_ctxcode_mean, x_det_ctxcode_logvar)
         #e_det_klctx2_loss = kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_logvar, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
-        e_det_klctx2_loss = (e_det_genctx_loss + e_det_negentctx_loss)
+        e_det_klctx2_loss = (e_det_priorctx_loss + e_det_negentctx_loss)
 
         d_nondet_adv_loss = discriminator_loss(self.gan_type, nondet_real_logit, fake_nondet_logit)
         d_nondet_reg_loss = GP + regularization_loss('discriminator_nondet_x')
@@ -784,7 +784,6 @@ class SPADE(object):
         random_dist_fake_det_x_segmap = tfd.Categorical(logits=random_dist_fake_det_x_stats[1]).sample()
         random_dist_fake_nondet_x = random_dist_fake_nondet_x_output
 
-<<<<<<< HEAD
         """" Summary """
         if summary:
             summary_global_step = tf.summary.scalar("global_step", global_step, step=global_step)
@@ -802,7 +801,7 @@ class SPADE(object):
             summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss", e_det_code_prior_loss, step=global_step)
             summary_e_det_code_prior2_loss = tf.summary.scalar("e_det_code_prior2_loss", e_det_code_prior2_loss, step=global_step)
             summary_e_det_priorctx_loss = tf.summary.scalar("e_det_priorctx_loss", e_det_priorctx_loss, step=global_step)
-            summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss", e_det_code_negent_loss, step=global_step)
+            summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss", e_det_code_negent_loss, step=global_step/
             summary_e_det_negentctx_loss = tf.summary.scalar("e_det_negentctx_loss", e_det_negentctx_loss, step=global_step)
 
             summary_e_det_kl_loss = tf.summary.scalar("e_det_kl_loss", e_det_kl_loss, step=global_step)
@@ -909,7 +908,6 @@ class SPADE(object):
         else :
             beta1 = self.beta1
             beta2 = self.beta2
-<<<<<<< HEAD
             g_lr = decay_fn(self.init_lr / float(self.n_critic))
             e_lr = decay_fn(self.init_lr / float(self.n_critic))
             de_lr = decay_fn(self.init_lr)
