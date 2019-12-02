@@ -512,7 +512,8 @@ class SPADE(object):
                 channel = self.ch
                 x = x_init
             
-                x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='ms_' + str(scale) + '_preresblock')
+                #x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='ms_' + str(scale) + '_preresblock')
+                x = constin_resblock(x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
 
                 #x = conv(x, channel, kernel=4, stride=2, pad=1, use_bias=True, sn=False, scope='ms_' + str(scale) + 'conv_0')
                 #x = lrelu(x, 0.2)
