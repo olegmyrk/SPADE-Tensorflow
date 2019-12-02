@@ -801,7 +801,7 @@ class SPADE(object):
             summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss", e_det_code_prior_loss, step=global_step)
             summary_e_det_code_prior2_loss = tf.summary.scalar("e_det_code_prior2_loss", e_det_code_prior2_loss, step=global_step)
             summary_e_det_priorctx_loss = tf.summary.scalar("e_det_priorctx_loss", e_det_priorctx_loss, step=global_step)
-            summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss", e_det_code_negent_loss, step=global_step/
+            summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss", e_det_code_negent_loss, step=global_step)
             summary_e_det_negentctx_loss = tf.summary.scalar("e_det_negentctx_loss", e_det_negentctx_loss, step=global_step)
 
             summary_e_det_kl_loss = tf.summary.scalar("e_det_kl_loss", e_det_kl_loss, step=global_step)
