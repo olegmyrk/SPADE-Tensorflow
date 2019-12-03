@@ -652,7 +652,7 @@ class SPADE(object):
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code()
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
-        random_det_code = z_sample(random_det_code_mean, random_det_code_var)
+        random_det_code = random_det_code_mean#z_sample(random_det_code_mean, random_det_code_var)
         random_simple_det_code = z_sample(*self.prior_code())
 
         prior_dist_det_code_dist = self.prior_code_dist(tf.stop_gradient(fake_det_x_full_ctxcode), scope='prior_dist_det_code')
@@ -679,7 +679,7 @@ class SPADE(object):
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code()
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
-        random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
+        random_nondet_code = random_nondet_code_mean#z_sample(random_nondet_code_mean, random_nondet_code_var)
         random_simple_nondet_code = z_sample(*self.prior_code())
 
         prior_dist_nondet_code_dist = self.prior_code_dist(tf.stop_gradient(fake_nondet_x_full_ctxcode), scope='prior_dist_nondet_code')
@@ -716,8 +716,8 @@ class SPADE(object):
         random_dist_full_nondet_x_z = tf.concat([random_dist_nondet_code, random_dist_det_code], -1) 
         random_dist_fake_nondet_x_output = self.generator_spatial(random_dist_full_nondet_x_code, random_dist_fake_det_x_scaffold, z=random_dist_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
-        [code_det_prior_real_logit, code_det_prior_real_summary], [code_det_prior_fake_logit, code_det_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_simple_det_code], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
-        [code_nondet_prior_real_logit, code_nondet_prior_real_summary], [code_nondet_prior_fake_logit, code_nondet_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_simple_nondet_code], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
+        [code_det_prior_real_logit, code_det_prior_real_summary], [code_det_prior_fake_logit, code_det_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
+        [code_nondet_prior_real_logit, code_nondet_prior_real_summary], [code_nondet_prior_fake_logit, code_nondet_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
 
         [code_det_gen_real_logit, code_det_gen_real_summary], [code_det_gen_fake_logit, code_det_gen_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_det_code], -1), name='det_gen')
         [code_nondet_gen_real_logit, code_nondet_gen_real_summary], [code_nondet_gen_fake_logit, code_nondet_gen_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_nondet_code], -1), name='nondet_gen')
