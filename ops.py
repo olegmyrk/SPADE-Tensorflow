@@ -72,8 +72,8 @@ def get_trainable_variable(name, shape=None, dtype=None, initializer=None, regul
   tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, variable)
   return variable
 
-def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True, sn=False, scope='conv_0'):
-    with tf.compat.v1.variable_scope(scope):
+def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
         if pad > 0:
             h = x.get_shape().as_list()[1]
             if h % stride == 0:
@@ -109,10 +109,10 @@ def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True,
         return x
 
 
-def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME', sn=False, scope='conv_0'):
-    with tf.compat.v1.variable_scope(scope):
+def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME', sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
         if padding.lower() == 'SAME'.lower():
-            with tf.compat.v1.variable_scope('mask'):
+            with tf.compat.v1.variable_scope('mask', reuse=reuse):
                 _, h, w, _ = x.get_shape().as_list()
 
                 slide_window = kernel * kernel
@@ -126,7 +126,7 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
                 update_mask = tf.clip_by_value(update_mask, 0.0, 1.0)
                 mask_ratio = mask_ratio * update_mask
 
-            with tf.compat.v1.variable_scope('x'):
+            with tf.compat.v1.variable_scope('x', reuse=reuse):
                 if sn:
                     w = get_trainable_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
                                         initializer=weight_init, regularizer=weight_regularizer)
@@ -160,8 +160,8 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
 
         return x
 
-def fully_connected(x, units, use_bias=True, sn=False, scope='linear'):
-    with tf.compat.v1.variable_scope(scope):
+def fully_connected(x, units, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope='linear'):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
         x = flatten(x)
         shape = x.get_shape().as_list()
         channels = shape[-1]
@@ -192,11 +192,11 @@ def flatten(x):
 # Residual-block
 ##################################################################################
 
-def resblock(x_init, channels, use_bias=True, sn=False, scope=None):
+def resblock(x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.compat.v1.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
         x = lrelu(x, 0.2)
@@ -207,11 +207,11 @@ def resblock(x_init, channels, use_bias=True, sn=False, scope=None):
 
         return x + x_init
 
-def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
+def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.compat.v1.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope, reuse) :
         x = constin(x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
@@ -226,8 +226,8 @@ def constin_resblock(x_init, channels, use_bias=True, sn=False, norm=True, scope
 
         return x + x_init
 
-def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
-    with tf.compat.v1.variable_scope(scope) :
+def constin(x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
         if norm:
             #x = param_free_norm(x_init)
             x = batch_norm(x_init, scope="batch_norm")
@@ -243,11 +243,11 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
 
         return x
 
-def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
+def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.compat.v1.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
         x = adain(context, x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
@@ -262,8 +262,8 @@ def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True
 
         return x + x_init
 
-def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
-    with tf.compat.v1.variable_scope(scope) :
+def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse) :
         if norm:
             #x = param_free_norm(x_init)
             x = batch_norm(x_init, scope="batch_norm")
@@ -283,8 +283,8 @@ def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=N
 
         return x
 
-def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
-    with tf.compat.v1.variable_scope(scope) :
+def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse) :
         if norm:
             #x = param_free_norm(x_init)
             x = batch_norm(x_init, scope="batch_norm")
@@ -300,11 +300,11 @@ def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, 
 
         return x
 
-def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope=None):
+def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.compat.v1.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope, reuse) :
         x = spade(segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
@@ -320,8 +320,8 @@ def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope=None
         return x + x_init
 
 
-def spade(segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
-    with tf.compat.v1.variable_scope(scope) :
+def spade(segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None) :
+    with tf.compat.v1.variable_scope(scope, reuse) :
         #x = param_free_norm(x_init)
         x = batch_norm(x_init, scope="batch_norm")
 
@@ -343,11 +343,11 @@ def spade(segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
 
         return x
 
-def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None):
+def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.compat.v1.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope, reuse) :
         x = cspade(context, segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
@@ -363,8 +363,8 @@ def cspade_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, 
         return x + x_init
 
 
-def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
-    with tf.compat.v1.variable_scope(scope) :
+def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None) :
+    with tf.compat.v1.variable_scope(scope, reuse) :
         #x = param_free_norm(x_init)
         x = batch_norm(x_init, scope="batch_norm")
 
@@ -399,8 +399,8 @@ def param_free_norm(x, epsilon=1e-5) :
 
     return (x - x_mean) / x_std
 
-def batch_norm(x, epsilon=1e-5, scope=None):
-    with tf.compat.v1.variable_scope(scope):
+def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse):
         mean, var = tf.nn.moments(x=x, axes=list(range(len(x.get_shape())-1)), keepdims=True)
         shape = mean.get_shape().as_list()
         offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))

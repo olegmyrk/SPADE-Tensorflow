@@ -261,7 +261,7 @@ class SPADE(object):
 
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
-    def generator(self, code, z=None, epsilon=1e-8, reuse=tf.compat.v1.AUTO_REUSE, scope="generator"):
+    def generator(self, code, z=None, epsilon=1e-8, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
         context = code
 
         context_depth = 8
