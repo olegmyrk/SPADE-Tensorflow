@@ -995,18 +995,68 @@ class SPADE(object):
         print("O11", time.time())
 
     def train(self):
-        distribute_strategy = tf.distribute.MirroredStrategy()
-        distributed_batch_size = distribute_strategy.num_replicas_in_sync * self.batch_size
-        print("Distributed replicas: %s" % (distribute_strategy.num_replicas_in_sync,))
-        print("Distributed batch size: %s" % (distributed_batch_size,))
+        #distribute_strategy = tf.distribute.MirroredStrategy()
+        #print("Distributed replicas: %s" % (distribute_strategy.num_replicas_in_sync,))
+        #batch_size_multiplier = distribute_strategy.num_replicas_in_sync
+        batch_size_multiplier = 1
+
+        total_batch_size = batch_size_multiplier * self.batch_size
+        print("Total batch size: %s" % (total_batch_size,))
 
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
-        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(distributed_batch_size)
-        dataset = distribute_strategy.experimental_distribute_dataset(dataset)
+        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*total_batch_size).batch(total_batch_size, drop_remainder=True)
+        dataset = dataset.prefetch(total_batch_size)
+        #dataset = distribute_strategy.experimental_distribute_dataset(dataset)
 
-        with distribute_strategy.scope():
+        @tf.function
+        def train_step(global_step, inputs):
+            def step_fn(global_step, inputs):
+                [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot] = inputs
+                with tf.GradientTape(persistent=True) as tape:
+                    losses, outputs = self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=True)
+
+                [g_loss, e_loss, de_loss, d_loss] = losses
+               
+                g_gradients = tape.gradient(g_loss, self.G_vars)
+                e_gradients = tape.gradient(e_loss, self.E_vars)
+                de_gradients = tape.gradient(de_loss, self.DE_vars)
+                d_gradients = tape.gradient(d_loss, self.D_vars)
+
+                self.G_optim.apply_gradients(zip(g_gradients, self.G_vars))
+                self.E_optim.apply_gradients(zip(e_gradients, self.E_vars))
+                self.DE_optim.apply_gradients(zip(de_gradients, self.DE_vars))
+                self.D_optim.apply_gradients(zip(d_gradients, self.D_vars))
+
+                global_step.assign_add(1)
+
+                return global_step, losses, outputs 
+            
+            print("S0", time.time()) 
+            #result = distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
+            result = step_fn(global_step, inputs)
+
+            print("S1", time.time()) 
+            result_global_step, result_losses, result_outputs = result
+           
+            print("S2", time.time(), result_global_step)
+            print("S2", time.time(), result_losses)
+            print("S2", time.time(), result_outputs)
+
+            #result_global_step = distribute_strategy.experimental_local_results(result_global_step)
+            #result_losses = list(map(distribute_strategy.experimental_local_results, result_losses)
+            #result_outputs = list(map(distribute_strategy.experimental_local_results, result_outputs)
+
+            reduced_global_step = tf.reduce_mean(result_global_step)
+            print("S3", time.time(), reduced_global_step)
+            reduced_losses = list(map(lambda result_loss: tf.reduce_mean(result_loss), result_losses))
+            print("S4", time.time(), reduced_losses)
+            reduced_outputs = list(map(lambda result_output: tf.concat(result_output, axis=0), result_outputs))
+            print("S5", time.time(), reduced_outputs)
+
+            return reduced_global_step, reduced_losses, reduced_outputs
+
+        def train_fn():
             # build global step
             global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, trainable=False)
 
@@ -1015,15 +1065,16 @@ class SPADE(object):
 
             # build model
             self.build_model()
+            global_variables = tf.compat.v1.global_variables()
 
             # show network architecture
-            show_all_variables()
+            show_all_variables(global_variables)
 
             # build optimizers
             self.build_optimizers()
 
             # saver to save model
-            checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([(var.name, var) for var in tf.compat.v1.global_variables()]))
+            checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([(var.name, var) for var in global_variables]))
             checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
 
             # restore check-point if it exits
@@ -1035,49 +1086,6 @@ class SPADE(object):
 
             # record start time
             start_time = time.time()
-
-            @tf.function
-            def train_step(global_step, inputs):
-                def step_fn(global_step, inputs):
-                    [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot] = inputs
-                    with tf.GradientTape(persistent=True) as tape:
-                        losses, outputs = self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=True)
-
-                    [g_loss, e_loss, de_loss, d_loss] = losses
-                   
-                    g_gradients = tape.gradient(g_loss, self.G_vars)
-                    e_gradients = tape.gradient(e_loss, self.E_vars)
-                    de_gradients = tape.gradient(de_loss, self.DE_vars)
-                    d_gradients = tape.gradient(d_loss, self.D_vars)
-
-                    self.G_optim.apply_gradients(zip(g_gradients, self.G_vars))
-                    self.E_optim.apply_gradients(zip(e_gradients, self.E_vars))
-                    self.DE_optim.apply_gradients(zip(de_gradients, self.DE_vars))
-                    self.D_optim.apply_gradients(zip(d_gradients, self.D_vars))
-
-                    global_step.assign_add(1)
-
-                    return global_step, losses, outputs 
-                
-                print("S0", time.time()) 
-                result = distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
-
-                print("S1", time.time()) 
-                result_global_step, result_losses, result_outputs = result
-               
-                print("S2", time.time(), result_global_step)
-                print("S2", time.time(), result_losses)
-                print("S2", time.time(), result_outputs)
- 
-                reduced_global_step = tf.reduce_mean(distribute_strategy.experimental_local_results(result_global_step))
-                print("S3", time.time(), reduced_global_step)
-                reduced_losses = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses))
-                print("S4", time.time(), reduced_losses)
-                reduced_outputs = list(map(lambda result_output: tf.concat(distribute_strategy.experimental_local_results(result_output), axis=0), result_outputs))
-                print("S5", time.time(), reduced_outputs)
-
-                return reduced_global_step, reduced_losses, reduced_outputs
-
 
             # training loop
             for inputs in dataset:
@@ -1110,6 +1118,9 @@ class SPADE(object):
 
             # save model for final step
             checkpoint_manager.save()
+
+        #with distribute_strategy.scope():
+        train_fn()
 
     @property
     def model_dir(self):

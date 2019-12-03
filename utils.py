@@ -230,15 +230,13 @@ def merge(images, size):
 
     return img
 
-def show_all_variables():
-    model_vars = tf.compat.v1.global_variables()
-    #slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+def show_all_variables(global_variables):
     print('---------')
     print('Variables: name (type shape) [size]')
     print('---------')
     total_size = 0
     total_bytes = 0
-    for var in model_vars:
+    for var in global_variables:
         # if var.num_elements() is None or [] assume size 0.
         var_size = var.get_shape().num_elements() or 0
         var_bytes = var_size * var.dtype.size
