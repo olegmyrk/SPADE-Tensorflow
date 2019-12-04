@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument('--kl_weight', type=float, default=1.0, help='Weight about kl-divergence')
 
     parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan / wgan-gp / wgan-lp / dragan')
-    parser.add_argument('--code_gan_type', type=str, default='hinge', help='code gan / lsgan / hinge / wgan / wgan-gp / wgan-lp / dragan')
+    parser.add_argument('--code_gan_type', type=str, default='gan', help='code gan / lsgan / hinge / wgan / wgan-gp / wgan-lp / dragan')
     parser.add_argument('--ch', type=int, default=64, help='base channel number per layer')
 
     parser.add_argument('--n_dis', type=int, default=4, help='The number of discriminator layer')

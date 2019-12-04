@@ -614,7 +614,7 @@ class SPADE(object):
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code()
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
-        random_det_code = random_det_code_mean#z_sample(random_det_code_mean, random_det_code_var)
+        random_det_code = z_sample(random_det_code_mean, random_det_code_var)
         random_simple_det_code = z_sample(*self.prior_code())
 
         prior_dist_det_code_dist = self.prior_code_dist(tf.stop_gradient(fake_det_x_full_ctxcode), scope='prior_dist_det_code')
@@ -641,7 +641,7 @@ class SPADE(object):
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code()
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
-        random_nondet_code = random_nondet_code_mean#z_sample(random_nondet_code_mean, random_nondet_code_var)
+        random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
         random_simple_nondet_code = z_sample(*self.prior_code())
 
         prior_dist_nondet_code_dist = self.prior_code_dist(tf.stop_gradient(fake_nondet_x_full_ctxcode), scope='prior_dist_nondet_code')
@@ -769,8 +769,8 @@ class SPADE(object):
         de_nondet_gen_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_gen_real_logit, code_nondet_gen_fake_logit)
         de_nondet_gen_reg_loss = regularization_loss('discriminator_nondet_gen_code')
 
-        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
-        e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (0*e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+        e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (0*e_det_gen_adv_loss + g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
         de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
         d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
