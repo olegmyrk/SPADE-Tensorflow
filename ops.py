@@ -68,9 +68,8 @@ weight_regularizer_fully = None
 ##################################################################################
 
 def get_trainable_variable(name, shape=None, dtype=None, initializer=None, regularizer=None):
-  variable = tf.compat.v1.get_variable(name, shape=shape, dtype=dtype, initializer=initializer, regularizer=regularizer, trainable=True)
+  variable = tf.compat.v1.get_variable(name, shape=shape, dtype=dtype, initializer=initializer, regularizer=regularizer)
   tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, variable)
-  tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, variable)
   return variable
 
 def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
