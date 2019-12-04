@@ -615,6 +615,7 @@ class SPADE(object):
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
         random_det_code = z_sample(random_det_code_mean, random_det_code_var)
+        random_gen_det_code = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, scope="generator_gen_det_code")[0]
         random_simple_det_code = z_sample(*self.prior_code())
 
         prior_dist_det_code_dist = self.prior_code_dist(tf.stop_gradient(fake_det_x_full_ctxcode), scope='prior_dist_det_code')
@@ -642,6 +643,7 @@ class SPADE(object):
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
         random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
+        random_gen_nondet_code = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, scope="generator_gen_nondet_code")[0]
         random_simple_nondet_code = z_sample(*self.prior_code())
 
         prior_dist_nondet_code_dist = self.prior_code_dist(tf.stop_gradient(fake_nondet_x_full_ctxcode), scope='prior_dist_nondet_code')
@@ -668,6 +670,16 @@ class SPADE(object):
         random_full_nondet_x_z = tf.concat([random_nondet_code, random_det_code], -1) 
         random_fake_nondet_x_output = self.generator_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
+        random_gen_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
+        random_gen_full_det_x_z = tf.concat([random_gen_det_code], -1)
+        random_gen_fake_det_x_features, random_gen_fake_det_x_stats = self.generator(random_gen_full_det_x_code, z=random_gen_full_det_x_z, reuse=True, scope="generator_det")
+        random_gen_fake_det_x_scaffold = random_gen_fake_det_x_features#tf.concat([random_gen_fake_det_x_stats[0][0], random_gen_fake_det_x_stats[1]], -1)
+        random_gen_fake_det_x_mean, random_gen_fake_det_x_var = random_gen_fake_det_x_stats[0]
+
+        random_gen_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1) 
+        random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_det_code], -1) 
+        random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
+
         random_dist_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1) 
         random_dist_full_det_x_z = tf.concat([random_dist_det_code], -1) 
         random_dist_fake_det_x_features, random_dist_fake_det_x_stats = self.generator(random_dist_full_det_x_code, z=random_dist_full_det_x_z, reuse=True, scope="generator_det")
@@ -681,8 +693,8 @@ class SPADE(object):
         code_det_prior_real_logit, code_det_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
         code_nondet_prior_real_logit, code_nondet_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
 
-        code_det_gen_real_logit, code_det_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_det_code], -1), name='det_gen')
-        code_nondet_gen_real_logit, code_nondet_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_nondet_code], -1), name='nondet_gen')
+        code_det_gen_real_logit, code_det_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_code], -1), name='gen_det')
+        code_nondet_gen_real_logit, code_nondet_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
 
         discriminator_fun = self.full_discriminator
         nondet_real_logit = discriminator_fun(tf.concat([real_ctx, real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet_x', label='real_nondet_x')
@@ -782,6 +794,9 @@ class SPADE(object):
         random_fake_det_x = random_fake_det_x_stats[0][0]
         random_fake_det_x_segmap = tfd.Categorical(logits=random_fake_det_x_stats[1]).sample()
         random_fake_nondet_x = random_fake_nondet_x_output
+        random_gen_fake_det_x = random_gen_fake_det_x_stats[0][0]
+        random_gen_fake_det_x_segmap = tfd.Categorical(logits=random_gen_fake_det_x_stats[1]).sample()
+        random_gen_fake_nondet_x = random_gen_fake_nondet_x_output
         random_dist_fake_det_x = random_dist_fake_det_x_stats[0][0]
         random_dist_fake_det_x_segmap = tfd.Categorical(logits=random_dist_fake_det_x_stats[1]).sample()
         random_dist_fake_nondet_x = random_dist_fake_nondet_x_output
@@ -861,7 +876,7 @@ class SPADE(object):
             summary_de_nondet_gen_reg_loss = tf.summary.scalar("de_nondet_gen_reg_loss", de_nondet_gen_reg_loss, step=global_step)
 
         losses = (g_loss, e_loss, de_loss, d_loss)
-        outputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x)
+        outputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x)
 
         return losses, outputs
 
@@ -926,10 +941,11 @@ class SPADE(object):
         self.D_optim = tf.keras.optimizers.Adam(d_lr, beta_1=beta1, beta_2=beta2)
 
         t_vars = tf.compat.v1.trainable_variables()
-        self.G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'prior_dist_nondet_code' in var.name]
-        self.E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'prior_dist_det_code' in var.name]
-        self.DE_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_nondet_prior_code' in var.name or 'discriminator_det_gen_code' in var.name or 'discriminator_nondet_gen_code' in var.name]
-        self.D_vars = [var for var in t_vars if 'discriminator_nondet_x' in var.name]
+        self.G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name or 'prior_dist_nondet_code' in var.name]
+        self.E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name or 'prior_dist_det_code' in var.name]
+        self.DE_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_det_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
+        self.D_vars = [var for var in t_vars if 'discriminator_nondet' in var.name]
+
 
     def report_losses(self, counter, epoch, idx, duration, losses):
         [g_loss, e_loss, de_loss, d_loss] = losses
@@ -945,7 +961,7 @@ class SPADE(object):
 
     def report_outputs(self, epoch, idx, outputs):
         print("O1", time.time())
-        [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x] = outputs
+        [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x] = outputs
 
         total_batch_size = real_ctx.get_shape()[0]
 
@@ -987,6 +1003,18 @@ class SPADE(object):
         print("O8", time.time())
         save_images(random_fake_nondet_x.numpy(), [total_batch_size, 1],
                     './{}/random_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+
+        print("O81", time.time())
+        save_images(random_gen_fake_det_x.numpy(), [total_batch_size, 1],
+                    './{}/random_gen_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+
+        print("O82", time.time())
+        save_segmaps(random_gen_fake_det_x_segmap.numpy(), self.color_value_dict, [total_batch_size, 1],
+                     './{}/random_gen_fake_det_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
+
+        print("O83", time.time())
+        save_images(random_gen_fake_nondet_x.numpy(), [total_batch_size, 1],
+                    './{}/random_gen_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
         print("O9", time.time())
         save_images(random_dist_fake_det_x.numpy(), [total_batch_size, 1],
