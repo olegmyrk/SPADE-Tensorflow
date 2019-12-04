@@ -615,7 +615,8 @@ class SPADE(object):
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
         random_det_code = z_sample(random_det_code_mean, random_det_code_var)
-        random_gen_det_code = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, scope="generator_gen_det_code")[0]
+        random_gen_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
+        random_gen_det_code = self.generator_code(tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_supercode, scope="generator_gen_det_code")[0]
         random_simple_det_code = z_sample(*self.prior_code())
 
         prior_dist_det_code_dist = self.prior_code_dist(tf.stop_gradient(fake_det_x_full_ctxcode), scope='prior_dist_det_code')
@@ -643,7 +644,8 @@ class SPADE(object):
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
         random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
-        random_gen_nondet_code = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, scope="generator_gen_nondet_code")[0]
+        random_gen_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
+        random_gen_nondet_code = self.generator_code(tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_supercode, scope="generator_gen_nondet_code")[0]
         random_simple_nondet_code = z_sample(*self.prior_code())
 
         prior_dist_nondet_code_dist = self.prior_code_dist(tf.stop_gradient(fake_nondet_x_full_ctxcode), scope='prior_dist_nondet_code')
