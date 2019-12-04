@@ -944,7 +944,7 @@ class SPADE(object):
         self.G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name or 'prior_dist_nondet_code' in var.name]
         self.E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name or 'prior_dist_det_code' in var.name]
         self.DE_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_det_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
-        self.D_vars = [var for var in t_vars if 'discriminator_nondet' in var.name]
+        self.D_vars = [var for var in t_vars if 'discriminator_nondet_x' in var.name]
 
 
     def report_losses(self, counter, epoch, idx, duration, losses):
