@@ -745,7 +745,7 @@ class SPADE(object):
 
         """ Define Loss """
         g_nondet_ce_loss = L1_loss(self.real_x, fake_nondet_x_output)
-        g_nondet_vgg_loss = self.vgg_weight * VGGLoss()(self.real_x, fake_nondet_x_output)
+        g_nondet_vgg_loss = VGGLoss()(self.real_x, fake_nondet_x_output)
         g_nondet_adv_loss = generator_loss(self.gan_type, fake_nondet_logit)
         g_nondet_feature_loss = self.feature_weight * feature_loss(nondet_real_logit, fake_nondet_logit)
         g_nondet_reg_loss = regularization_loss('generator_nondet')
@@ -753,7 +753,7 @@ class SPADE(object):
         #g_det_ce_loss = L2_loss(self.real_x, fake_det_x_mean)
         g_det_ce_loss = gaussian_loss(self.real_x, fake_det_x_mean, fake_det_x_var)
         g_det_segmapce_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.real_x_segmap_onehot, logits=fake_det_x_stats[1]))
-        g_det_vgg_loss = self.vgg_weight * VGGLoss()(self.real_x, fake_det_x_stats[0][0])
+        g_det_vgg_loss = VGGLoss()(self.real_x, fake_det_x_stats[0][0])
         g_det_reg_loss = regularization_loss('generator_det')
 
         #g_nondet_code_ce_loss = L2_mean_loss(code_stop_gradient(fake_nondet_x_code), fake_nondet_x_code_mean)
@@ -833,7 +833,7 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_vgg_loss + 0*g_nondet_ce_loss + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
             self.e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
             self.de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss

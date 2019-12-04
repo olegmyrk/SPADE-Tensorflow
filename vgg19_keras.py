@@ -16,7 +16,8 @@ class VGGLoss(tf.keras.Model):
         loss = 0
 
         for i in range(len(x_vgg)):
-            y_vgg_detach = tf.stop_gradient(y_vgg[i])
+            #y_vgg_detach = tf.stop_gradient(y_vgg[i])
+            y_vgg_detach = y_vgg[i]
             loss += self.layer_weights[i] * L1_mean_loss(x_vgg[i], y_vgg_detach)
 
         return loss
