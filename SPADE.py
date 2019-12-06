@@ -269,6 +269,7 @@ class SPADE(object):
         channel = self.ch * 4 * 4
         batch_size = self.batch_size
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            features = []
 
             #for i in range(context_depth):
             #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
@@ -302,18 +303,22 @@ class SPADE(object):
 
 
             x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
+            features.append(x)
 
             x = up_sample(x, scale_factor=2)
             x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
+            features.append(x)
 
             if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
 
             x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
+            features.append(x)
 
             for i in range(4) :
                 x = up_sample(x, scale_factor=2)
                 x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
+                features.append(x)
 
                 channel = channel // 2
                 # 512 -> 256 -> 128 -> 64
@@ -322,13 +327,88 @@ class SPADE(object):
                 x = up_sample(x, scale_factor=2)
             #    x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
             x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
+            features.append(x)
 
             x = lrelu(x, 0.2)
             mean = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_mean')
             var = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_var')
             logits = conv(x, channels=self.segmap_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_logits')
 
-            return x, [[tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))], logits]
+            return features, [[tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))], logits]
+
+    def generator_features(self, code, features, z, reuse=False, scope=None):
+        context = code
+        features = list(reversed(features))
+
+        context_depth = 8
+        context_ch = 10*context.get_shape()[-1]
+        channel = self.ch * 4 * 4
+        batch_size = self.batch_size
+        with tf.variable_scope(scope, reuse=reuse):
+
+            #for i in range(context_depth):
+            #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
+            #    context = lrelu(context, 0.2)
+            
+            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=self.sn, scope='linear_noise')
+
+            if self.num_upsampling_layers == 'less':
+                num_up_layers = 4
+            elif self.num_upsampling_layers == 'normal':
+                num_up_layers = 5
+            elif self.num_upsampling_layers == 'more':
+                num_up_layers = 6
+            elif self.num_upsampling_layers == 'most':
+                num_up_layers = 7
+
+            z_width = self.img_width // (pow(2, num_up_layers))
+            z_height = self.img_height // (pow(2, num_up_layers))
+
+            """
+            # If num_up_layers = 5 (normal)
+            
+            # 64x64 -> 2
+            # 128x128 -> 4
+            # 256x256 -> 8
+            # 512x512 -> 16
+            
+            """
+
+            x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
+            x = tf.reshape(x, [batch_size, z_height, z_width, channel])
+
+            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
+            x = x + features.pop()
+
+            x = up_sample(x, scale_factor=2)
+            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
+            x = x + features.pop()
+
+            if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
+                x = up_sample(x, scale_factor=2)
+
+            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
+            x = x + features.pop()
+
+            for i in range(4) :
+                x = up_sample(x, scale_factor=2)
+                x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
+                x = x + features.pop()
+
+                channel = channel // 2
+                # 512 -> 256 -> 128 -> 64
+
+            if self.num_upsampling_layers == 'most':
+                x = up_sample(x, scale_factor=2)
+            #    x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
+            x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
+            x = x + features.pop()
+
+            x = lrelu(x, 0.2)
+            x = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
+            x = tanh(x)
+
+            return x
 
     def generator_spatial(self, code, scaffold, z, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
         context = code
@@ -337,7 +417,6 @@ class SPADE(object):
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
         batch_size = self.batch_size
-        _, h, w, _ = scaffold.get_shape().as_list()
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
@@ -660,7 +739,8 @@ class SPADE(object):
         fake_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
         fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_det_x_code)],-1) 
         fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
-        fake_nondet_x_output = self.generator_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        #fake_nondet_x_output = self.generator_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        fake_nondet_x_output = self.generator_features(fake_full_nondet_x_code, map(tf.stop_gradient, fake_det_x_features), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
         random_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
         random_full_det_x_z = tf.concat([random_det_code], -1)
@@ -670,7 +750,8 @@ class SPADE(object):
 
         random_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1) 
         random_full_nondet_x_z = tf.concat([random_nondet_code, random_det_code], -1) 
-        random_fake_nondet_x_output = self.generator_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        #random_fake_nondet_x_output = self.generator_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        random_fake_nondet_x_output = self.generator_features(random_full_nondet_x_code, random_fake_det_x_features, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
         random_gen_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
         random_gen_full_det_x_z = tf.concat([random_gen_det_code], -1)
@@ -680,7 +761,8 @@ class SPADE(object):
 
         random_gen_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1) 
         random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_det_code], -1) 
-        random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        #random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        random_gen_fake_nondet_x_output = self.generator_features(random_gen_full_nondet_x_code, random_gen_fake_det_x_features, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
         random_dist_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1) 
         random_dist_full_det_x_z = tf.concat([random_dist_det_code], -1) 
@@ -690,7 +772,8 @@ class SPADE(object):
 
         random_dist_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1) 
         random_dist_full_nondet_x_z = tf.concat([random_dist_nondet_code, random_dist_det_code], -1) 
-        random_dist_fake_nondet_x_output = self.generator_spatial(random_dist_full_nondet_x_code, random_dist_fake_det_x_scaffold, z=random_dist_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        #random_dist_fake_nondet_x_output = self.generator_spatial(random_dist_full_nondet_x_code, random_dist_fake_det_x_scaffold, z=random_dist_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        random_dist_fake_nondet_x_output = self.generator_features(random_dist_full_nondet_x_code, random_dist_fake_det_x_features, z=random_dist_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
         code_det_prior_real_logit, code_det_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_simple_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
         code_nondet_prior_real_logit, code_nondet_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_simple_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
@@ -803,7 +886,6 @@ class SPADE(object):
         random_dist_fake_det_x_segmap = tfd.Categorical(logits=random_dist_fake_det_x_stats[1]).sample()
         random_dist_fake_nondet_x = random_dist_fake_nondet_x_output
 
-<<<<<<< HEAD
         """" Summary """
         if summary:
             summary_global_step = tf.summary.scalar("global_step", global_step, step=global_step)
@@ -865,12 +947,6 @@ class SPADE(object):
         
             summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss", d_nondet_adv_loss, step=global_step)
             summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss", d_nondet_reg_loss, step=global_step)
-=======
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
-            self.e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
-            self.de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
-            self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
->>>>>>> f2adf14d0a5866b5921e362925e51264f0face8d
 
             summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss", de_det_prior_adv_loss, step=global_step)
             summary_de_det_prior_reg_loss = tf.summary.scalar("de_det_prior_reg_loss", de_det_prior_reg_loss, step=global_step)
