@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from vgg19_keras import VGGLoss
 from unet import unet
+from masked_autoregressive import conditional_masked_autoregressive_template
 
 class SPADE(object):
     def __init__(self, sess, args):
@@ -187,17 +188,17 @@ class SPADE(object):
             bijectors = []
             for i in range(self.code_dist_num_layers):
                 bijectors.append(tfb.MaskedAutoregressiveFlow(
-                  shift_and_log_scale_fn=tfb.masked_autoregressive_default_template(
-                  hidden_layers=[hidden_channel, hidden_channel], name=scope + "/masked_autoregressive_default_template_" + str(i))))
+                  shift_and_log_scale_fn=conditional_masked_autoregressive_template(
+                      code, hidden_layers=[hidden_channel, hidden_channel], name=scope + "/maf_" + str(i))))
 
                 context_gamma = fully_connected(context, units=out_channel, scope='linear_gamma_' + str(i))
                 context_beta = fully_connected(context, units=out_channel, scope='linear_beta_' + str(i))
                 bijectors.append(tfb.BatchNormalization(
                     batchnorm_layer=tf.layers.BatchNormalization(
-                                        gamma_constraint=lambda x:tf.ones(shape=[out_channel]), beta_constraint=lambda x:tf.zeros(shape=[out_channel]),
+                                        #gamma_constraint=lambda x:tf.ones(shape=[out_channel]), beta_constraint=lambda x:tf.zeros(shape=[out_channel]),
                                         name=scope + '/batch_norm_' + str(i)),
                     name=scope + '/batch_norm_bijector' + str(i)))
-                bijectors.append(tfb.AffineLinearOperator(context_beta, tf.linalg.LinearOperatorDiag(context_gamma)))
+                #bijectors.append(tfb.AffineLinearOperator(context_beta, tf.linalg.LinearOperatorDiag(context_gamma)))
 
                 permutation=tf.get_variable('permutation_'+str(i), initializer=np.random.permutation(out_channel).astype("int32"), trainable=False)
                 bijectors.append(tfb.Permute(permutation))
