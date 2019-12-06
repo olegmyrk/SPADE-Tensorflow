@@ -692,8 +692,8 @@ class SPADE(object):
         random_dist_full_nondet_x_z = tf.concat([random_dist_nondet_code, random_dist_det_code], -1) 
         random_dist_fake_nondet_x_output = self.generator_spatial(random_dist_full_nondet_x_code, random_dist_fake_det_x_scaffold, z=random_dist_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
-        code_det_prior_real_logit, code_det_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
-        code_nondet_prior_real_logit, code_nondet_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
+        code_det_prior_real_logit, code_det_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_simple_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
+        code_nondet_prior_real_logit, code_nondet_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_simple_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
 
         code_det_gen_real_logit, code_det_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_code], -1), name='gen_det')
         code_nondet_gen_real_logit, code_nondet_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
@@ -803,6 +803,7 @@ class SPADE(object):
         random_dist_fake_det_x_segmap = tfd.Categorical(logits=random_dist_fake_det_x_stats[1]).sample()
         random_dist_fake_nondet_x = random_dist_fake_nondet_x_output
 
+<<<<<<< HEAD
         """" Summary """
         if summary:
             summary_global_step = tf.summary.scalar("global_step", global_step, step=global_step)
@@ -864,6 +865,12 @@ class SPADE(object):
         
             summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss", d_nondet_adv_loss, step=global_step)
             summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss", d_nondet_reg_loss, step=global_step)
+=======
+            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+            self.e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+            self.de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
+            self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
+>>>>>>> f2adf14d0a5866b5921e362925e51264f0face8d
 
             summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss", de_det_prior_adv_loss, step=global_step)
             summary_de_det_prior_reg_loss = tf.summary.scalar("de_det_prior_reg_loss", de_det_prior_reg_loss, step=global_step)
