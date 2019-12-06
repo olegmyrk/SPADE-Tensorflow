@@ -237,6 +237,23 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
 
         return x
 
+def constin_vector(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
+    with tf.variable_scope(scope) :
+        if norm:
+            #x = param_free_norm(x_init)
+            x = batch_norm(x_init, scope="batch_norm")
+        else:
+            x = x_init
+
+        x_b, x_c = x_init.get_shape().as_list()
+
+        gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+
+        x = x * (1 + gamma) + beta
+
+        return x
+
 def adain_resblock(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)

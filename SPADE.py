@@ -233,7 +233,7 @@ class SPADE(object):
             x = x_init
             for i in range(self.code_num_layers):
                 x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
-                x = batch_norm(x, hidden_channel, scope="batch_norm_" + str(i))
+                x = constin_vector(x, hidden_channel, scope="constin_" + str(i))
                 x = lrelu(x, 0.2)
                 xs.append(x)
             x = tf.concat(xs,-1)
