@@ -344,7 +344,7 @@ class SPADE(object):
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
         batch_size = self.batch_size
-        with tf.variable_scope(scope, reuse=reuse):
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
             #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
@@ -405,7 +405,7 @@ class SPADE(object):
             x = x + features.pop()
 
             x = lrelu(x, 0.2)
-            x = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
+            x = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
             x = tanh(x)
 
             return x
@@ -740,7 +740,7 @@ class SPADE(object):
         fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_det_x_code)],-1) 
         fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
         #fake_nondet_x_output = self.generator_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet")
-        fake_nondet_x_output = self.generator_features(fake_full_nondet_x_code, map(tf.stop_gradient, fake_det_x_features), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        fake_nondet_x_output = self.generator_features(fake_full_nondet_x_code, list(map(tf.stop_gradient, fake_det_x_features)), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
         random_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
         random_full_det_x_z = tf.concat([random_det_code], -1)
