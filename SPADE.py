@@ -170,8 +170,7 @@ class SPADE(object):
             var = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_var')
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
-    def prior_code(self, channel_multiplier=4):
-        batch_size = self.batch_size
+    def prior_code(self, batch_size, channel_multiplier=4):
         out_channel = self.ch * channel_multiplier
         mean = tf.zeros([batch_size, out_channel])
         var = tf.zeros([batch_size, out_channel])
@@ -179,7 +178,7 @@ class SPADE(object):
 
     def prior_code_dist(self, code, channel_multiplier=4, epsilon=1e-8, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
         context = code
-        batch_size = self.batch_size
+        batch_size = context.get_shape()[0]
         out_channel = self.ch * channel_multiplier
         hidden_channel = self.ch * 64
 
@@ -260,7 +259,7 @@ class SPADE(object):
         context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
-        batch_size = self.batch_size
+        batch_size = context.get_shape()[0]
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             features = []
 
@@ -336,7 +335,7 @@ class SPADE(object):
         context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
-        batch_size = self.batch_size
+        batch_size = context.get_shape()[0]
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
@@ -409,7 +408,7 @@ class SPADE(object):
         context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
-        batch_size = self.batch_size
+        batch_size = context.get_shape()[0]
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
@@ -619,8 +618,8 @@ class SPADE(object):
         return real_logit, fake_logit
 
     def gradient_penalty(self, real, fake, code, discriminator, name=None):
+        shape = tf.shape(input=real)
         if self.gan_type == 'dragan':
-            shape = tf.shape(input=real)
             eps = tf.random.uniform(shape=shape, minval=0., maxval=1.)
             x_mean, x_var = tf.nn.moments(x=real, axes=[0, 1, 2, 3])
             x_std = tf.sqrt(x_var)  # magnitude of noise decides the size of local region
@@ -630,7 +629,7 @@ class SPADE(object):
             interpolated = tf.clip_by_value(real + alpha * noise, -1., 1.)  # x_hat should be in the space of X
 
         else:
-            alpha = tf.random.uniform(shape=[self.batch_size, 1, 1, 1], minval=0., maxval=1.)
+            alpha = tf.random.uniform(shape=[shape[0], 1, 1, 1], minval=0., maxval=1.)
             interpolated = alpha * real + (1. - alpha) * fake
 
         logit = discriminator(interpolated, code=code, reuse=True, scope='discriminator_' + name + '', label='interpolated_' + name + '')
@@ -661,9 +660,9 @@ class SPADE(object):
     def prepare_model(self):
         self.vgg_loss = VGGLoss() 
 
-    def execute_model(self, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary):
+    def execute_model(self, batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary):
         """ Define Generator, Discriminator """
-        prior_det_code_mean, prior_det_code_logvar = self.prior_code()
+        prior_det_code_mean, prior_det_code_logvar = self.prior_code(batch_size)
         x_det_code_mean, x_det_code_logvar = self.encoder_code(real_x, scope='encoder_det_code')
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
@@ -679,22 +678,22 @@ class SPADE(object):
         fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, tf.stop_gradient(fake_det_x_codectx)],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, scope="generator_det_code")
         
-        prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code(channel_multiplier=4)#self.encoder_code(real_x, scope='prior_det_supercode')
+        prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_det_supercode')
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         prior_det_supercode_dist = self.prior_code_dist(fake_det_x_full_ctxcode, channel_multiplier=4, scope='prior_det_supercode')
         random_det_supercode = prior_det_supercode_dist.sample()
-        prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code()
+        prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code(batch_size)
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
         random_det_code = z_sample(random_det_code_mean, random_det_code_var)
         random_gen_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         random_gen_det_code = self.generator_code(tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_supercode, scope="generator_gen_det_code")[0]
-        random_simple_det_code = z_sample(*self.prior_code())
+        random_simple_det_code = z_sample(*self.prior_code(batch_size))
 
         prior_dist_det_code_dist = self.prior_code_dist(tf.stop_gradient(fake_det_x_full_ctxcode), scope='prior_dist_det_code')
         random_dist_det_code = prior_dist_det_code_dist.sample()
         
-        prior_nondet_code_mean, prior_nondet_code_logvar = self.prior_code()
+        prior_nondet_code_mean, prior_nondet_code_logvar = self.prior_code(batch_size)
 
         x_nondet_code_mean, x_nondet_code_logvar = self.encoder_code(real_x, scope='encoder_nondet_code')
         fake_nondet_x_code = z_sample(x_nondet_code_mean, x_nondet_code_logvar)
@@ -708,17 +707,17 @@ class SPADE(object):
         fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, tf.stop_gradient(fake_nondet_x_codectx)],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
-        prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code(channel_multiplier=4)#self.encoder_code(real_x, scope='prior_nondet_supercode')
+        prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_dist(fake_nondet_x_full_ctxcode, channel_multiplier=4, scope='prior_nondet_supercode')
         random_nondet_supercode = prior_nondet_supercode_dist.sample()
-        prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code()
+        prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code(batch_size)
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
         random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
         random_gen_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         random_gen_nondet_code = self.generator_code(tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_supercode, scope="generator_gen_nondet_code")[0]
-        random_simple_nondet_code = z_sample(*self.prior_code())
+        random_simple_nondet_code = z_sample(*self.prior_code(batch_size))
 
         prior_dist_nondet_code_dist = self.prior_code_dist(tf.stop_gradient(fake_nondet_x_full_ctxcode), scope='prior_dist_nondet_code')
         random_dist_nondet_code = prior_dist_nondet_code_dist.sample()
