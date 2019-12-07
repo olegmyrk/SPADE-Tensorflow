@@ -1104,8 +1104,8 @@ class SPADE(object):
                         print("det_code_vae:", det_code_vae) 
 
                         # Update G
-                        real_ctx_images, real_x_images, real_x_segmap, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, nondet_code_vae, _, g_loss, summary_str = self.sess.run(
-                            [self.real_ctx, self.real_x, self.real_x_segmap, self.fake_det_x, self.fake_det_x_var, self.fake_det_x_segmap, self.fake_nondet_x, self.random_gen_fake_det_x, self.random_gen_fake_det_x_segmap, self.random_gen_fake_nondet_x, self.random_dist_fake_det_x, self.random_dist_fake_det_x_segmap, self.random_dist_fake_nondet_x, self.random_fake_det_x, self.random_fake_det_x_segmap, self.random_fake_nondet_x, self.nondet_code_vae,
+                        nondet_code_vae, _, g_loss, summary_str = self.sess.run(
+                            [self.nondet_code_vae,
                              self.G_optim,
                              self.g_loss, self.G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
                         print("nondet_code_vae:", nondet_code_vae) 
@@ -1130,6 +1130,9 @@ class SPADE(object):
                 sys.stdout.flush()
 
                 if np.mod(idx + 1, self.save_freq) == 0:
+                    real_ctx_images, real_x_images, real_x_segmap, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x = self.sess.run(
+                        [self.real_ctx, self.real_x, self.real_x_segmap, self.fake_det_x, self.fake_det_x_var, self.fake_det_x_segmap, self.fake_nondet_x, self.random_gen_fake_det_x, self.random_gen_fake_det_x_segmap, self.random_gen_fake_nondet_x, self.random_dist_fake_det_x, self.random_dist_fake_det_x_segmap, self.random_dist_fake_nondet_x, self.random_fake_det_x, self.random_fake_det_x_segmap, self.random_fake_nondet_x], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+
                     save_images(real_ctx_images, [self.batch_size, 1],
                                './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
