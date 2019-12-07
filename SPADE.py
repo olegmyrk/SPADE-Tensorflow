@@ -1129,7 +1129,7 @@ class SPADE(object):
                     epoch, idx, self.iteration, time.time() - start_time, d_loss))
                 sys.stdout.flush()
 
-                if np.mod(idx + 1, self.print_freq) == 0:
+                if np.mod(idx + 1, self.save_freq) == 0:
                     save_images(real_ctx_images, [self.batch_size, 1],
                                './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
