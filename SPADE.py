@@ -191,8 +191,8 @@ class SPADE(object):
                   shift_and_log_scale_fn=conditional_masked_autoregressive_template(
                       code, hidden_layers=[hidden_channel, hidden_channel], name=scope + "/maf_" + str(i))))
 
-                context_gamma = fully_connected(context, units=out_channel, scope='linear_gamma_' + str(i))
-                context_beta = fully_connected(context, units=out_channel, scope='linear_beta_' + str(i))
+                #context_gamma = fully_connected(context, units=out_channel, scope='linear_gamma_' + str(i))
+                #context_beta = fully_connected(context, units=out_channel, scope='linear_beta_' + str(i))
                 bijectors.append(tfb.BatchNormalization(
                     batchnorm_layer=tf.layers.BatchNormalization(
                                         #gamma_constraint=lambda x:tf.ones(shape=[out_channel]), beta_constraint=lambda x:tf.zeros(shape=[out_channel]),
