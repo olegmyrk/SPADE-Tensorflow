@@ -250,8 +250,8 @@ class SPADE(object):
                 x = lrelu(x, 0.2)
 
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
-            var = tf.get_variable("var", [], initializer=tf.constant_initializer(0.0))
-            #var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
+            #var = tf.get_variable("var", [], initializer=tf.constant_initializer(0.0))
+            var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
 
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
