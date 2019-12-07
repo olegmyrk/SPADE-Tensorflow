@@ -179,7 +179,6 @@ class SPADE(object):
 
     def prior_code_dist(self, code, channel_multiplier=4, epsilon=1e-8, reuse=False, scope=None):
         context = code
-        batch_size = context.get_shape()[0]
         out_channel = self.ch * channel_multiplier
         hidden_channel = self.ch * 64
 
@@ -213,7 +212,7 @@ class SPADE(object):
             #mvn_scale = tf.linalg.transpose(mvn_corr * tf.expand_dims(mvn_scale_diag,2)) * tf.expand_dims(mvn_scale_diag,2)
             #mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
-            #_, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, scope='mvn_scale_seed'), [batch_size, out_channel, out_channel]), full_matrices=True)
+            #_, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, scope='mvn_scale_seed'), [-1, out_channel, out_channel]), full_matrices=True)
             #mvn_scale = tf.linalg.matmul(tf.matmul(mvn_scale_u, mvn_scale_diag), tf.linalg.transpose(mvn_scale_u))
             #mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
@@ -260,7 +259,6 @@ class SPADE(object):
         context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
-        batch_size = context.get_shape()[0]
         with tf.variable_scope(scope, reuse=reuse):
             features = []
 
@@ -292,7 +290,7 @@ class SPADE(object):
             
             """
             x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
-            x = tf.reshape(x, [batch_size, z_height, z_width, channel])
+            x = tf.reshape(x, [-1, z_height, z_width, channel])
 
 
             x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
@@ -336,7 +334,6 @@ class SPADE(object):
         context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
-        batch_size = context.get_shape()[0]
         with tf.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
@@ -368,7 +365,7 @@ class SPADE(object):
             """
 
             x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
-            x = tf.reshape(x, [batch_size, z_height, z_width, channel])
+            x = tf.reshape(x, [-1, z_height, z_width, channel])
 
             x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
             x = x + features.pop()
@@ -409,7 +406,6 @@ class SPADE(object):
         context_depth = 8
         context_ch = 10*context.get_shape()[-1]
         channel = self.ch * 4 * 4
-        batch_size = context.get_shape()[0]
         with tf.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
@@ -441,7 +437,7 @@ class SPADE(object):
             """
 
             x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
-            x = tf.reshape(x, [batch_size, z_height, z_width, channel])
+            x = tf.reshape(x, [-1, z_height, z_width, channel])
 
             x = cspade_resblock(context, scaffold, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
             #x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')

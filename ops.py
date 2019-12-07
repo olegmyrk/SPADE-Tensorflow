@@ -228,7 +228,7 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, scope=None):
         else:
             x = x_init
 
-        x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
+        _, x_h, x_w, x_c = x_init.get_shape().as_list()
 
         gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
         beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
@@ -264,7 +264,7 @@ def constin_vector(x_init, channels, use_bias=True, sn=False, norm=True, scope=N
         else:
             x = x_init
 
-        x_b, x_c = x_init.get_shape().as_list()
+        _, x_c = x_init.get_shape().as_list()
 
         gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
         beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
@@ -300,12 +300,12 @@ def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, scope=N
         else:
             x = x_init
 
-        x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
+        _, x_h, x_w, x_c = x_init.get_shape().as_list()
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
 
-        context_shape = [x_b, 1, 1, channels]
+        context_shape = [-1, 1, 1, channels]
         context_gamma = tf.reshape(context_gamma, context_shape)
         context_beta = tf.reshape(context_beta, context_shape)
 
@@ -340,7 +340,7 @@ def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, 
         else:
             x = x_init
 
-        x_b, x_c = x_init.get_shape().as_list()
+        -1, x_c = x_init.get_shape().as_list()
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
@@ -417,7 +417,7 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=Non
         #x = param_free_norm(x_init)
         x = batch_norm(x_init, scope="batch_norm")
 
-        x_b, x_h, x_w, _ = x_init.get_shape().as_list()
+        -1, x_h, x_w, _ = x_init.get_shape().as_list()
         _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
 
         factor_h = segmap_h // x_h  # 256 // 4 = 64
@@ -426,7 +426,7 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=Non
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
 
-        context_shape = [x_b, 1, 1, channels]
+        context_shape = [-1, 1, 1, channels]
         context_gamma = tf.reshape(context_gamma, context_shape)
         context_beta = tf.reshape(context_beta, context_shape)
 
