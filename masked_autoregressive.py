@@ -1,6 +1,7 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf1
+import tensorflow.compat.v2 as tf
 import tensorflow_probability as tfp
-#from tensorflow_probability.python.math.numeric import clip_by_value_preserve_gradient
+from tensorflow_probability.python.math.numeric import clip_by_value_preserve_gradient
 tfb = tfp.bijectors
 
 def unmasked_dense(inputs,
@@ -11,13 +12,13 @@ def unmasked_dense(inputs,
                  name=None,
                  *args,  # pylint: disable=keyword-arg-before-vararg
                  **kwargs):
-  input_depth = tf.dimension_value(inputs.shape.with_rank_at_least(1)[-1])
+  input_depth = tf.compat.dimension_value(inputs.shape[-1])
 
   if kernel_initializer is None:
-    kernel_initializer = tf.glorot_normal_initializer()
+      kernel_initializer = tf1.glorot_normal_initializer()
 
   with tf.name_scope(name or 'unmasked_dense'):
-    layer = tf.layers.Dense(
+    layer = tf1.layers.Dense(
         units,
         kernel_initializer=kernel_initializer,
         activation=activation,
@@ -78,7 +79,7 @@ def conditional_masked_autoregressive_template(
 
   with tf.name_scope(name):
     def _fn(x):
-      input_depth = tf.dimension_value(x.shape.with_rank_at_least(1)[-1])
+      input_depth = tf.compat.dimension_value(x.shape[-1])
       input_shape = tf.shape(x)
       for i, units in enumerate(hidden_layers):
         x = conditional_masked_dense(
@@ -107,16 +108,9 @@ def conditional_masked_autoregressive_template(
       shift, log_scale = tf.unstack(x, num=2, axis=-1)
       which_clip = (
           tf.clip_by_value
-          if log_scale_clip_gradient else _clip_by_value_preserve_grad)
+          if log_scale_clip_gradient else clip_by_value_preserve_gradient)
       log_scale = which_clip(log_scale, log_scale_min_clip, log_scale_max_clip)
       return shift, log_scale
 
-    return tf.make_template(name, _fn)
-
-def _clip_by_value_preserve_grad(x, clip_value_min, clip_value_max, name=None):
-  """Clips input while leaving gradient unaltered."""
-  with tf.name_scope(name, "clip_by_value_preserve_grad",
-                     [x, clip_value_min, clip_value_max]):
-    clip_x = tf.clip_by_value(x, clip_value_min, clip_value_max)
-    return x + tf.stop_gradient(clip_x - x)
+    return tf1.make_template(name, _fn)
 

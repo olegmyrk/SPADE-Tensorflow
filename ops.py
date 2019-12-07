@@ -234,7 +234,7 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compa
         else:
             x = x_init
 
-        x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
+        _, x_h, x_w, x_c = x_init.get_shape().as_list()
 
         gamma = get_trainable_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
         beta = get_trainable_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
@@ -270,10 +270,10 @@ def constin_vector(x_init, channels, use_bias=True, sn=False, norm=True, reuse=t
         else:
             x = x_init
 
-        x_b, x_c = x_init.get_shape().as_list()
+        _, x_c = x_init.get_shape().as_list()
 
-        gamma = tf.get_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
-        beta = tf.get_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        gamma = get_trainable_variable("gamma", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
+        beta = get_trainable_variable("beta", shape=[x_c], initializer=weight_init, regularizer=weight_regularizer)
 
         x = x * (1 + gamma) + beta
 
@@ -306,12 +306,12 @@ def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=t
         else:
             x = x_init
 
-        x_b, x_h, x_w, x_c = x_init.get_shape().as_list()
+        _, x_h, x_w, x_c = x_init.get_shape().as_list()
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
 
-        context_shape = [x_b, 1, 1, channels]
+        context_shape = [-1, 1, 1, channels]
         context_gamma = tf.reshape(context_gamma, context_shape)
         context_beta = tf.reshape(context_beta, context_shape)
 
@@ -346,7 +346,7 @@ def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, 
         else:
             x = x_init
 
-        x_b, x_c = x_init.get_shape().as_list()
+        _, x_c = x_init.get_shape().as_list()
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
@@ -423,7 +423,7 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.
         #x = param_free_norm(x_init)
         x = batch_norm(x_init, scope="batch_norm")
 
-        x_b, x_h, x_w, _ = x_init.get_shape().as_list()
+        _, x_h, x_w, _ = x_init.get_shape().as_list()
         _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
 
         factor_h = segmap_h // x_h  # 256 // 4 = 64
@@ -432,7 +432,7 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
 
-        context_shape = [x_b, 1, 1, channels]
+        context_shape = [-1, 1, 1, channels]
         context_gamma = tf.reshape(context_gamma, context_shape)
         context_beta = tf.reshape(context_beta, context_shape)
 
@@ -517,7 +517,7 @@ def spectral_norm(w, iteration=1):
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
-    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
+    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)#, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
 
     u_hat = u
     v_hat = None
@@ -537,9 +537,12 @@ def spectral_norm(w, iteration=1):
 
     sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(a=u_hat))
 
-    with tf.control_dependencies([u.assign(u_hat)]):
-        w_norm = w / sigma
-        w_norm = tf.reshape(w_norm, w_shape)
+    #with tf.control_dependencies([u.assign(u_hat)]):
+    #    w_norm = w / sigma
+    #    w_norm = tf.reshape(w_norm, w_shape)
+    u.assign(u_hat)
+    w_norm = w / sigma
+    w_norm = tf.reshape(w_norm, w_shape)
 
     return w_norm
 
