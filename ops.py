@@ -243,6 +243,25 @@ def constin(x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compa
 
         return x
 
+def constin_fcblock(x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
+        x = constin_vector(x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_1')
+        x = lrelu(x, 0.2)
+        x = fully_connected(x, units=channel_middle, use_bias=use_bias, sn=sn, scope='linear_1')
+
+        x = constin_vector(x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='norm_2')
+        x = lrelu(x, 0.2)
+        x = fully_connected(x, units=channels, use_bias=use_bias, sn=sn, scope='linear_2')
+
+        if channel_in != channels :
+            x_init = constin_vector(x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_shortcut')
+            x_init = fully_connected(x_init, units=channels, use_bias=False, sn=sn, scope='linear_shortcut')
+
+        return x + x_init
+
 def constin_vector(x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     with tf.compat.v1.variable_scope(scope, reuse=reuse) :
         if norm:
@@ -299,6 +318,25 @@ def adain(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=t
         x = x * (1 + context_gamma) + context_beta
 
         return x
+
+def adain_fcblock(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
+        x = adain_vector(context, x_init, channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_1')
+        x = lrelu(x, 0.2)
+        x = fully_connected(x, units=channel_middle, use_bias=use_bias, sn=sn, scope='linear_1')
+
+        x = adain_vector(context, x, channels=channel_middle, use_bias=use_bias, sn=False, norm=norm, scope='norm_2')
+        x = lrelu(x, 0.2)
+        x = fully_connected(x, units=channels, use_bias=use_bias, sn=sn, scope='linear_2')
+
+        if channel_in != channels :
+            x_init = adain_vector(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, norm=norm, scope='norm_shortcut')
+            x_init = fully_connected(x_init, units=channels, use_bias=False, sn=sn, scope='linear_shortcut')
+
+        return x + x_init
 
 def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     with tf.compat.v1.variable_scope(scope, reuse=reuse) :

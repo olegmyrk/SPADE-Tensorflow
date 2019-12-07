@@ -190,8 +190,8 @@ class SPADE(object):
                   shift_and_log_scale_fn=conditional_masked_autoregressive_template(
                       code, hidden_layers=[hidden_channel, hidden_channel], name=scope + "/maf_" + str(i))))
 
-                context_gamma = fully_connected(context, units=out_channel, scope='linear_gamma_' + str(i))
-                context_beta = fully_connected(context, units=out_channel, scope='linear_beta_' + str(i))
+                #context_gamma = fully_connected(context, units=out_channel, scope='linear_gamma_' + str(i))
+                #context_beta = fully_connected(context, units=out_channel, scope='linear_beta_' + str(i))
                 bijectors.append(tfb.BatchNormalization(
                     batchnorm_layer=tf.compat.v1.layers.BatchNormalization(
                                         #gamma_constraint=lambda x:tf.ones(shape=[out_channel]), beta_constraint=lambda x:tf.zeros(shape=[out_channel]),
@@ -229,14 +229,10 @@ class SPADE(object):
         out_channel = self.ch*channel_multiplier
         hidden_channel = self.ch*64
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            xs = [x_init]
             x = x_init
             for i in range(self.code_num_layers):
-                x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
-                x = constin_vector(x, hidden_channel, scope="constin_" + str(i))
+                x = constin_fcblock(x, hidden_channel, scope="fcblock_" + str(i))
                 x = lrelu(x, 0.2)
-                xs.append(x)
-            x = tf.concat(xs,-1)
 
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
             var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
@@ -247,18 +243,14 @@ class SPADE(object):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            xs = [x_init]
             x = x_init
             for i in range(self.code_num_layers):
-                x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
-                x = adain_vector(code, x, hidden_channel, scope="adain_" + str(i))
+                x = adain_fcblock(code, x, hidden_channel, scope="fcblock_" + str(i))
                 x = lrelu(x, 0.2)
-                xs.append(x)
-            x = tf.concat(xs,-1)
 
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
-            var = get_trainable_variable("var", [], initializer=tf.compat.v1.constant_initializer(0.0))
-            #var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
+            #var = get_trainable_variable("var", [], initializer=tf.compat.v1.constant_initializer(0.0))
+            var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
 
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
