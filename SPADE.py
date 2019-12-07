@@ -230,14 +230,10 @@ class SPADE(object):
         out_channel = self.ch*channel_multiplier
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
-            xs = [x_init]
             x = x_init
             for i in range(self.code_num_layers):
-                x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
-                x = constin_vector(x, hidden_channel, scope="constin_" + str(i))
+                x = constin_fcblock(x, hidden_channel, scope="fcblock_" + str(i))
                 x = lrelu(x, 0.2)
-                xs.append(x)
-            x = tf.concat(xs,-1)
 
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
             var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
@@ -248,14 +244,10 @@ class SPADE(object):
         out_channel = self.ch*4
         hidden_channel = self.ch*64
         with tf.variable_scope(scope, reuse=reuse):
-            xs = [x_init]
             x = x_init
             for i in range(self.code_num_layers):
-                x = fully_connected(x, hidden_channel, use_bias=True, sn=False, scope='linear_' + str(i))
-                x = adain_vector(code, x, hidden_channel, scope="adain_" + str(i))
+                x = adain_fcblock(code, x, hidden_channel, scope="fcblock_" + str(i))
                 x = lrelu(x, 0.2)
-                xs.append(x)
-            x = tf.concat(xs,-1)
 
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
             var = tf.get_variable("var", [], initializer=tf.constant_initializer(0.0))
