@@ -340,7 +340,7 @@ def adain_vector(context, x_init, channels, use_bias=True, sn=False, norm=True, 
         else:
             x = x_init
 
-        -1, x_c = x_init.get_shape().as_list()
+        _, x_c = x_init.get_shape().as_list()
 
         context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
         context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
@@ -417,7 +417,7 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=Non
         #x = param_free_norm(x_init)
         x = batch_norm(x_init, scope="batch_norm")
 
-        -1, x_h, x_w, _ = x_init.get_shape().as_list()
+        _, x_h, x_w, _ = x_init.get_shape().as_list()
         _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
 
         factor_h = segmap_h // x_h  # 256 // 4 = 64
