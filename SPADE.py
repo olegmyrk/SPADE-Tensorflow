@@ -1154,11 +1154,14 @@ class SPADE(object):
 
             # saver to save model
             print("> Loading checkpoint")
-            checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([('(root).' + var.name, var) for var in tf.compat.v1.global_variables()]))
+            checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([(var.name, var) for var in tf.compat.v1.global_variables()]))
             checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
 
             # restore check-point if it exits
             if checkpoint_manager.latest_checkpoint:
+                checkpoint_vars = tf.train.list_variables(checkpoint_manager.latest_checkpoint)
+                for (checkpoint_var_name, checkpoint_var_shape) in checkpoint_vars:
+                    print("Checkpoint variable: %s%s" % (checkpoint_var_name, checkpoint_var_shape))
                 checkpoint.restore(checkpoint_manager.latest_checkpoint).expect_partial()
                 print(" [*] Load SUCCESS")
             else:
@@ -1221,7 +1224,7 @@ class SPADE(object):
                     self.report_losses(counter, epoch, idx, time.time() - start_time, *losses)
                     #tf.py_function(func=self.report_losses, inp=(counter, epoch, idx, time.time() - start_time, *losses), Tout=[])
 
-                    if (idx+1) % self.save_freq == 0:
+                    if (idx+1) % self.print_freq == 0:
                         print("L6",  time.time())
                         self.report_outputs(epoch, idx, *map(lambda output: output.numpy(), outputs))
                         #tf.py_function(func=self.report_outputs, inp=(epoch, idx, *outputs), Tout=[])
