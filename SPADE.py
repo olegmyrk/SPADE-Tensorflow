@@ -1192,19 +1192,12 @@ class SPADE(object):
                         global_step.assign_add(1)
                         return tf.convert_to_tensor(global_step), losses, outputs 
 
-                    tf.print("E0", time.time()) 
                     result_counter, result_losses, result_outputs = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
                    
-                    tf.print("E1", time.time())
                     reduced_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
-
-                    tf.print("E2", time.time())
                     reduced_losses = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses))
-                    
-                    tf.print("E3", time.time())
                     reduced_outputs = list(map(lambda result_output: tf.concat(distribute_strategy.experimental_local_results(result_output), axis=0), result_outputs))
 
-                    tf.print("E4", time.time())
                     return reduced_counter, reduced_losses, reduced_outputs
 
                 # training loop
