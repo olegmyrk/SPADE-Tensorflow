@@ -1122,7 +1122,7 @@ class SPADE(object):
 
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
-        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size).batch(2)
+        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size)
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
 
@@ -1204,35 +1204,36 @@ class SPADE(object):
                     return reduced_counter, reduced_losses, reduced_outputs
 
                 # training loop
-                for inputs in dataset:
+                for inputs_idx, inputs in enumerate(dataset):
                     print("L1", time.time())
                     with self.writer.as_default():
-                        print("L2DET", time.time())
-                        train_det_grad(global_step, *map(lambda t:t[0], inputs))
-                                               
-                        print("L2NONDET", time.time())
-                        counter, losses, outputs = train_nondet_grad(global_step, *map(lambda t:t[1], inputs))
+                        if inputs_idx % 2 == 0:
+                            print("L2DET", time.time())
+                            train_det_grad(global_step, *inputs)
+                        else:
+                            print("L2NONDET", time.time())
+                            counter, losses, outputs = train_nondet_grad(global_step, *inputs)
+
+                            print("L4",  time.time())
+                            epoch = (counter-1) // self.iteration 
+                            idx = (counter-1) % self.iteration
+
+                            print("L5",  time.time())
+                            self.report_losses(counter, epoch, idx, time.time() - start_time, *losses)
+                            #tf.py_function(func=self.report_losses, inp=(counter, epoch, idx, time.time() - start_time, *losses), Tout=[])
+
+                            if (idx+1) % self.print_freq == 0:
+                                print("L6",  time.time())
+                                self.report_outputs(epoch, idx, *map(lambda output: output.numpy(), outputs))
+                                #tf.py_function(func=self.report_outputs, inp=(epoch, idx, *outputs), Tout=[])
+
+                            if counter-1 > 0 and (counter-1) % self.save_freq == 0:
+                                print("L7",  time.time())
+                                checkpoint_manager.save()
+                                #tf.py_function(checkpoint_manager.save, [], [tf.string])
 
                     print("L3",  time.time())
                     self.writer.flush()
-
-                    print("L4",  time.time())
-                    epoch = (counter-1) // self.iteration 
-                    idx = (counter-1) % self.iteration
-
-                    print("L5",  time.time())
-                    self.report_losses(counter, epoch, idx, time.time() - start_time, *losses)
-                    #tf.py_function(func=self.report_losses, inp=(counter, epoch, idx, time.time() - start_time, *losses), Tout=[])
-
-                    if (idx+1) % self.print_freq == 0:
-                        print("L6",  time.time())
-                        self.report_outputs(epoch, idx, *map(lambda output: output.numpy(), outputs))
-                        #tf.py_function(func=self.report_outputs, inp=(epoch, idx, *outputs), Tout=[])
-
-                    if counter-1 > 0 and (counter-1) % self.save_freq == 0:
-                        print("L7",  time.time())
-                        checkpoint_manager.save()
-                        #tf.py_function(checkpoint_manager.save, [], [tf.string])
                     
             train_loop()
 
