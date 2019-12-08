@@ -908,8 +908,8 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.01*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
-            self.e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.01*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+            self.g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.01*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+            self.g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.01*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
             self.de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
             self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
@@ -935,8 +935,8 @@ class SPADE(object):
 
         """ Training """
         t_vars = tf.trainable_variables()
-        G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name or 'prior_dist_nondet_code' in var.name]
-        E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name or 'prior_dist_det_code' in var.name]
+        G_nondet_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name or 'prior_dist_nondet_code' in var.name]
+        G_det_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name or 'prior_dist_det_code' in var.name]
         DE_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_det_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
         D_vars = [var for var in t_vars if 'discriminator_nondet' in var.name]
 
@@ -953,16 +953,16 @@ class SPADE(object):
             g_lr = self.lr
             d_lr = self.lr
 
-        self.G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_loss, var_list=G_vars)
-        self.E_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.e_loss, var_list=E_vars)
+        self.G_nondet_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_nondet_loss, var_list=G_nondet_vars)
+        self.G_det_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.g_det_loss, var_list=G_det_vars)
         self.DE_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.de_loss, var_list=DE_vars)
         self.D_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars, global_step = self.global_step)
 
         """" Summary """
         self.summary_global_step = tf.summary.scalar("global_step", self.global_step)
 
-        self.summary_g_loss = tf.summary.scalar("g_loss", self.g_loss)
-        self.summary_e_loss = tf.summary.scalar("e_loss", self.e_loss)
+        self.summary_g_nondet_loss = tf.summary.scalar("g_nondet_loss", self.g_nondet_loss)
+        self.summary_g_det_loss = tf.summary.scalar("g_det_loss", self.g_det_loss)
         self.summary_de_loss = tf.summary.scalar("de_loss", self.de_loss)
         self.summary_d_loss = tf.summary.scalar("d_loss", self.d_loss)
 
@@ -1036,13 +1036,13 @@ class SPADE(object):
         self.summary_de_nondet_gen_adv_loss = tf.summary.scalar("de_nondet_gen_adv_loss", de_nondet_gen_adv_loss)
         self.summary_de_nondet_gen_reg_loss = tf.summary.scalar("de_nondet_gen_reg_loss", de_nondet_gen_reg_loss)
 
-        g_summary_list = [self.summary_g_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl2_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_prior_adv_loss, self.summary_e_nondet_gen_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_prior2_loss, self.summary_e_nondet_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negentctx_loss, self.summary_e_nondet_prior_loss, self.summary_e_nondet_prior2_loss, self.summary_e_nondet_negent_loss]
-        e_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_segmapce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_e_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl2_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_prior_adv_loss, self.summary_e_det_gen_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_klctx_loss, self.summary_e_det_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_prior2_loss, self.summary_e_det_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negentctx_loss, self.summary_e_det_prior_loss, self.summary_e_det_prior2_loss, self.summary_e_det_negent_loss]
+        g_nondet_summary_list = [self.summary_g_nondet_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl2_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_prior_adv_loss, self.summary_e_nondet_gen_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_prior2_loss, self.summary_e_nondet_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negentctx_loss, self.summary_e_nondet_prior_loss, self.summary_e_nondet_prior2_loss, self.summary_e_nondet_negent_loss]
+        g_det_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_segmapce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_g_det_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl2_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_prior_adv_loss, self.summary_e_det_gen_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_klctx_loss, self.summary_e_det_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_prior2_loss, self.summary_e_det_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negentctx_loss, self.summary_e_det_prior_loss, self.summary_e_det_prior2_loss, self.summary_e_det_negent_loss]
         d_summary_list = [self.summary_global_step, self.summary_d_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
         de_summary_list = [self.summary_de_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss] + code_det_prior_real_summary + code_det_prior_fake_summary + code_nondet_prior_real_summary + code_nondet_prior_fake_summary + [self.summary_de_det_gen_adv_loss, self.summary_de_det_gen_reg_loss, self.summary_de_nondet_gen_adv_loss, self.summary_de_nondet_gen_reg_loss] + code_det_gen_real_summary + code_det_gen_fake_summary + code_nondet_gen_real_summary + code_nondet_gen_fake_summary
 
-        self.G_loss = tf.summary.merge(g_summary_list)
-        self.E_loss = tf.summary.merge(e_summary_list)
+        self.G_nondet_loss = tf.summary.merge(g_nondet_summary_list)
+        self.G_det_loss = tf.summary.merge(g_det_summary_list)
         self.D_loss = tf.summary.merge(d_summary_list)
         self.DE_loss = tf.summary.merge(de_summary_list)
 
@@ -1071,8 +1071,8 @@ class SPADE(object):
 
         # loop for epoch
         start_time = time.time()
-        past_g_loss = -1.
-        past_e_loss = -1.
+        past_g_nondet_loss = -1.
+        past_g_det_loss = -1.
         lr = self.init_lr
 
         for epoch in range(start_epoch, self.epoch):
@@ -1088,8 +1088,8 @@ class SPADE(object):
                 _, d_loss, d_summary_str = self.sess.run([self.D_optim, self.d_loss, self.D_loss], feed_dict=train_feed_dict)
                 self.writer.add_summary(d_summary_str, counter)
 
-                e_loss = None
-                g_loss = None
+                g_nondet_loss = None
+                g_det_loss = None
                 
                 if (counter - 1) % self.n_critic == 0:
                     # Update DE
@@ -1098,31 +1098,31 @@ class SPADE(object):
 
                     if (counter - 1) % (self.n_critic*self.code_n_critic) == 0:
                         # Update E
-                        det_code_vae, _, e_loss, e_summary_str = self.sess.run([self.det_code_vae, self.E_optim, self.e_loss, self.E_loss], feed_dict=train_feed_dict)
-                        self.writer.add_summary(e_summary_str, counter)
-                        past_e_loss = e_loss
+                        det_code_vae, _, g_det_loss, g_det_summary_str = self.sess.run([self.det_code_vae, self.G_det_optim, self.g_det_loss, self.G_det_loss], feed_dict=train_feed_dict)
+                        self.writer.add_summary(g_det_summary_str, counter)
+                        past_g_det_loss = g_det_loss
                         print("det_code_vae:", det_code_vae) 
 
                         # Update G
-                        nondet_code_vae, _, g_loss, summary_str = self.sess.run(
+                        nondet_code_vae, _, g_nondet_loss, g_nondet_summary_str = self.sess.run(
                             [self.nondet_code_vae,
-                             self.G_optim,
-                             self.g_loss, self.G_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+                             self.G_nondet_optim,
+                             self.g_nondet_loss, self.G_nondet_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
                         print("nondet_code_vae:", nondet_code_vae) 
 
-                        self.writer.add_summary(summary_str, counter)
-                        past_g_loss = g_loss
+                        self.writer.add_summary(g_nondet_summary_str, counter)
+                        past_g_nondet_loss = g_nondet_loss
 
                 # display training status
                 counter += 1
-                if e_loss == None:
-                    e_loss = past_e_loss
-                if g_loss == None:
-                    g_loss = past_g_loss
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, g_loss))
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f e_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, e_loss))
+                if g_nondet_loss == None:
+                    g_nondet_loss = past_g_nondet_loss
+                if g_det_loss == None:
+                    g_det_loss = past_g_det_loss
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_nondet_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, g_nondet_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_det_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, g_det_loss))
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_loss: %.8f" % (
                     epoch, idx, self.iteration, time.time() - start_time, de_loss))
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f" % (
