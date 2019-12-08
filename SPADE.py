@@ -1139,7 +1139,7 @@ class SPADE(object):
             @tf.function
             def build():
                 def build_fn(global_step):
-                    fake_batch_size = 0
+                    fake_batch_size = 1
                     (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot) = self.build_fake_inputs(fake_batch_size)
                     self.execute_model(fake_batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
                 distribute_strategy.experimental_run_v2(build_fn, args=(0,))
