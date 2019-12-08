@@ -211,7 +211,7 @@ def save_images(images, size, image_path):
     return imsave(image_to_uint8(inverse_transform(images)), size, image_path)
 
 def image_to_uint8(image):
-    return (256*image).astype(np.uint8)
+    return (255*image).astype(np.uint8)
 
 def inverse_transform(images):
     return (images+1.) / 2
