@@ -1,6 +1,7 @@
 import sys
 from ops import *
 from utils import *
+import types
 import time
 import tensorflow_probability as tfp
 tfd = tfp.distributions
@@ -656,7 +657,7 @@ class SPADE(object):
     def prepare_model(self):
         self.vgg_loss = VGGLoss() 
 
-    def execute_model(self, batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary):
+    def execute_model(self, batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot):
 
         """ Define Generator, Discriminator """
         prior_det_code_mean, prior_det_code_logvar = self.prior_code(batch_size)
@@ -855,10 +856,12 @@ class SPADE(object):
         de_nondet_gen_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_gen_real_logit, code_nondet_gen_fake_logit)
         de_nondet_gen_reg_loss = regularization_loss('discriminator_nondet_gen_code')
 
-        g_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.01*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
-        e_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.01*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
-        de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
-        d_loss = d_nondet_adv_loss + d_nondet_reg_loss
+        g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.01*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+        de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
+        d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
+
+        g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.01*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+        de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss
 
         """ Result Image """
         fake_det_x = fake_det_x_stats[0][0]
@@ -876,13 +879,11 @@ class SPADE(object):
         random_dist_fake_nondet_x = random_dist_fake_nondet_x_output
 
         """" Summary """
-        if summary:
+        def summaries_det():
             summary_global_step = tf.summary.scalar("global_step", global_step, step=global_step)
 
-            summary_g_loss = tf.summary.scalar("g_loss", g_loss, step=global_step)
-            summary_e_loss = tf.summary.scalar("e_loss", e_loss, step=global_step)
-            summary_de_loss = tf.summary.scalar("de_loss", de_loss, step=global_step)
-            summary_d_loss = tf.summary.scalar("d_loss", d_loss, step=global_step)
+            summary_g_det_loss = tf.summary.scalar("g_det_loss", g_det_loss, step=global_step)
+            summary_de_det_loss = tf.summary.scalar("de_det_loss", de_det_loss, step=global_step)
 
             summary_g_det_code_ce_loss = tf.summary.scalar("g_det_code_ce_loss", g_det_code_ce_loss, step=global_step)
             summary_e_det_code_kl_loss = tf.summary.scalar("e_det_code_kl_loss", e_det_code_kl_loss, step=global_step)
@@ -904,6 +905,21 @@ class SPADE(object):
             summary_e_det_prior_adv_loss = tf.summary.scalar("e_det_prior_adv_loss", e_det_prior_adv_loss, step=global_step)
             summary_e_det_gen_adv_loss = tf.summary.scalar("e_det_gen_adv_loss", e_det_gen_adv_loss, step=global_step)
 
+            summary_g_det_ce_loss = tf.summary.scalar("g_det_ce_loss", g_det_ce_loss, step=global_step)
+            summary_g_det_vgg_loss = tf.summary.scalar("g_det_vgg_loss", g_det_vgg_loss, step=global_step)
+            summary_g_det_reg_loss = tf.summary.scalar("g_det_reg_loss", g_det_reg_loss, step=global_step)
+
+            summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss", de_det_prior_adv_loss, step=global_step)
+            summary_de_det_prior_reg_loss = tf.summary.scalar("de_det_prior_reg_loss", de_det_prior_reg_loss, step=global_step)
+
+            summary_de_det_gen_adv_loss = tf.summary.scalar("de_det_gen_adv_loss", de_det_gen_adv_loss, step=global_step)
+            summary_de_det_gen_reg_loss = tf.summary.scalar("de_det_gen_reg_loss", de_det_gen_reg_loss, step=global_step)
+
+        def summaries_nondet():
+            summary_g_nondet_loss = tf.summary.scalar("g_nondet_loss", g_nondet_loss, step=global_step)
+            summary_de_nondet_loss = tf.summary.scalar("de_nondet_loss", de_nondet_loss, step=global_step)
+            summary_d_nondet_loss = tf.summary.scalar("d_nondet_loss", d_nondet_loss, step=global_step)
+
             summary_g_nondet_code_ce_loss = tf.summary.scalar("g_nondet_code_ce_loss", g_nondet_code_ce_loss, step=global_step)
             summary_e_nondet_code_kl_loss = tf.summary.scalar("e_nondet_code_kl_loss", e_nondet_code_kl_loss, step=global_step)
             summary_e_nondet_klctx_loss = tf.summary.scalar("e_nondet_klctx_loss", e_nondet_klctx_loss, step=global_step)
@@ -924,10 +940,6 @@ class SPADE(object):
             summary_e_nondet_prior_adv_loss = tf.summary.scalar("e_nondet_prior_adv_loss", e_nondet_prior_adv_loss, step=global_step)
             summary_e_nondet_gen_adv_loss = tf.summary.scalar("e_nondet_gen_adv_loss", e_nondet_gen_adv_loss, step=global_step)
 
-            summary_g_det_ce_loss = tf.summary.scalar("g_det_ce_loss", g_det_ce_loss, step=global_step)
-            summary_g_det_vgg_loss = tf.summary.scalar("g_det_vgg_loss", g_det_vgg_loss, step=global_step)
-            summary_g_det_reg_loss = tf.summary.scalar("g_det_reg_loss", g_det_reg_loss, step=global_step)
-
             summary_g_nondet_ce_loss = tf.summary.scalar("g_nondet_ce_loss", g_nondet_ce_loss, step=global_step)
             summary_g_nondet_vgg_loss = tf.summary.scalar("g_nondet_vgg_loss", g_nondet_vgg_loss, step=global_step)
             summary_g_nondet_feature_loss = tf.summary.scalar("g_nondet_feature_loss", g_nondet_feature_loss, step=global_step)
@@ -936,23 +948,23 @@ class SPADE(object):
         
             summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss", d_nondet_adv_loss, step=global_step)
             summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss", d_nondet_reg_loss, step=global_step)
-
-            summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss", de_det_prior_adv_loss, step=global_step)
-            summary_de_det_prior_reg_loss = tf.summary.scalar("de_det_prior_reg_loss", de_det_prior_reg_loss, step=global_step)
             
             summary_de_nondet_prior_adv_loss = tf.summary.scalar("de_nondet_prior_adv_loss", de_nondet_prior_adv_loss, step=global_step)
             summary_de_nondet_prior_reg_loss = tf.summary.scalar("de_nondet_prior_reg_loss", de_nondet_prior_reg_loss, step=global_step)
-
-            summary_de_det_gen_adv_loss = tf.summary.scalar("de_det_gen_adv_loss", de_det_gen_adv_loss, step=global_step)
-            summary_de_det_gen_reg_loss = tf.summary.scalar("de_det_gen_reg_loss", de_det_gen_reg_loss, step=global_step)
             
             summary_de_nondet_gen_adv_loss = tf.summary.scalar("de_nondet_gen_adv_loss", de_nondet_gen_adv_loss, step=global_step)
             summary_de_nondet_gen_reg_loss = tf.summary.scalar("de_nondet_gen_reg_loss", de_nondet_gen_reg_loss, step=global_step)
 
-        losses = (g_loss, e_loss, de_loss, d_loss)
+        losses = types.SimpleNamespace()
+        losses.g_det_loss = g_det_loss
+        losses.de_det_loss = de_det_loss
+        losses.g_nondet_loss = g_nondet_loss
+        losses.de_nondet_loss = de_nondet_loss
+        losses.d_nondet_loss = d_nondet_loss
+        
         outputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x)
 
-        return losses, outputs
+        return losses, outputs, summaries_det, summaries_nondet
 
     def build_fake_inputs(self, batch_size):
         real_ctx = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, self.img_height, self.img_width, self.img_ch)))
@@ -993,39 +1005,45 @@ class SPADE(object):
             beta1 = 0.0
             beta2 = 0.9
 
-            g_lr = decay_fn(self.init_lr / 2 / float(self.n_critic))
-            e_lr = decay_fn(self.init_lr / 2 / float(self.n_critic))
-            de_lr = decay_fn(self.init_lr * 2)
-            d_lr = decay_fn(self.init_lr * 2)
+            g_nondet_lr = decay_fn(self.init_lr / 2 / float(self.n_critic))
+            d_nondet_lr = decay_fn(self.init_lr * 2)
+            de_nondet_lr = decay_fn(self.init_lr * 2)
+            g_det_lr = decay_fn(self.init_lr / 2 / float(self.n_critic))
+            de_det_lr = decay_fn(self.init_lr * 2)
 
         else :
             beta1 = self.beta1
             beta2 = self.beta2
-            g_lr = decay_fn(self.init_lr / float(self.n_critic))
-            e_lr = decay_fn(self.init_lr / float(self.n_critic))
-            de_lr = decay_fn(self.init_lr)
-            d_lr = decay_fn(self.init_lr)
+            g_nondet_lr = decay_fn(self.init_lr / float(self.n_critic))
+            de_nondet_lr = decay_fn(self.init_lr)
+            d_nondet_lr = decay_fn(self.init_lr)
+            g_det_lr = decay_fn(self.init_lr / float(self.n_critic))
+            de_det_lr = decay_fn(self.init_lr)
 
-        self.G_optim = tf.keras.optimizers.Adam(g_lr, beta_1=beta1, beta_2=beta2)
-        self.E_optim = tf.keras.optimizers.Adam(e_lr, beta_1=beta1, beta_2=beta2)
-        self.DE_optim = tf.keras.optimizers.Adam(de_lr, beta_1=beta1, beta_2=beta2)
-        self.D_optim = tf.keras.optimizers.Adam(d_lr, beta_1=beta1, beta_2=beta2)
+        self.G_nondet_optim = tf.keras.optimizers.Adam(g_nondet_lr, beta_1=beta1, beta_2=beta2)
+        self.DE_nondet_optim = tf.keras.optimizers.Adam(de_nondet_lr, beta_1=beta1, beta_2=beta2)
+        self.D_nondet_optim = tf.keras.optimizers.Adam(d_nondet_lr, beta_1=beta1, beta_2=beta2)
+        self.G_det_optim = tf.keras.optimizers.Adam(g_det_lr, beta_1=beta1, beta_2=beta2)
+        self.DE_det_optim = tf.keras.optimizers.Adam(de_det_lr, beta_1=beta1, beta_2=beta2)
 
         t_vars = tf.compat.v1.trainable_variables()
-        self.G_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name or 'prior_dist_nondet_code' in var.name]
-        self.E_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name or 'prior_dist_det_code' in var.name]
-        self.DE_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_det_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
-        self.D_vars = [var for var in t_vars if 'discriminator_nondet_x' in var.name]
+        self.G_nondet_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name or 'prior_dist_nondet_code' in var.name]
+        self.DE_nondet_vars = [var for var in t_vars if 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
+        self.D_nondet_vars = [var for var in t_vars if 'discriminator_nondet_x' in var.name]
+        self.G_det_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name or 'prior_dist_det_code' in var.name]
+        self.DE_det_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_gen_det_code' in var.name]
 
-    def report_losses(self, counter, epoch, idx, duration, g_loss, e_loss, de_loss, d_loss):
-        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f g_loss: %.8f" % (
-            counter, epoch, idx, self.iteration, duration, g_loss))
-        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f e_loss: %.8f" % (
-            counter, epoch, idx, self.iteration, duration, e_loss))
-        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f de_loss: %.8f" % (
-            counter, epoch, idx, self.iteration, duration, de_loss))
-        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f" % (
-            counter, epoch, idx, self.iteration, duration, d_loss))
+    def report_losses(self, counter, epoch, idx, duration, g_det_loss, de_det_loss, g_nondet_loss, de_nondet_loss, d_nondet_loss):
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f g_det_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, g_det_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f de_det_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, de_det_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f g_nondet_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, g_nondet_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f de_nondet_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, de_nondet_loss))
+        print("Counter: [%2d]: Epoch: [%2d] [%5d/%5d] time: %4.4f d_nondet_loss: %.8f" % (
+            counter, epoch, idx, self.iteration, duration, d_nondet_loss))
         sys.stdout.flush()
 
     def report_outputs(self, epoch, idx, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x):
@@ -1104,7 +1122,7 @@ class SPADE(object):
 
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
-        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size, drop_remainder=True)
+        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size).batch(5)
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
 
@@ -1117,18 +1135,14 @@ class SPADE(object):
             self.prepare_model()
 
             # build model
-            print("> Buildiing model")
+            print("> Building model")
             @tf.function
             def build():
                 def build_fn(global_step):
                     fake_batch_size = 0
                     (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot) = self.build_fake_inputs(fake_batch_size)
-                    self.execute_model(fake_batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=False)
+                    self.execute_model(fake_batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
                 distribute_strategy.experimental_run_v2(build_fn, args=(0,))
-            #tf.autograph.to_graph(build)
-            #from tensorflow.python.autograph.core import ag_ctx
-            #from tensorflow.python.autograph.impl import api as autograph
-            #autograph.tf_convert(build, ag_ctx.control_status_ctx(), convert_by_default=False)
             build()
 
             # show network architecture
@@ -1156,84 +1170,74 @@ class SPADE(object):
 
             def train_loop():
                 @tf.function
-                def train_step(global_step, inputs):
-                    def step_fn(global_step, inputs):
-                        [real_ctx, real_x, real_x_segmap, real_x_segmap_onehot] = inputs
+                def train_det_grad(global_step, *inputs):
+                    def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
-                            losses, outputs = self.execute_model(self.batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot, summary=True)
+                            losses, _, summaries_det, _ = self.execute_model(self.batch_size, global_step, *inputs)
+                        self.G_det_optim.apply_gradients(zip(tape.gradient(losses.g_det_loss, self.G_det_vars), self.G_det_vars))
+                        self.DE_det_optim.apply_gradients(zip(tape.gradient(losses.de_det_loss, self.DE_det_vars), self.DE_det_vars))
+                        summaries_det()
+                    distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
 
-                        [g_loss, e_loss, de_loss, d_loss] = losses
-                       
-                        g_gradients = tape.gradient(g_loss, self.G_vars)
-                        e_gradients = tape.gradient(e_loss, self.E_vars)
-                        de_gradients = tape.gradient(de_loss, self.DE_vars)
-                        d_gradients = tape.gradient(d_loss, self.D_vars)
-
-                        self.G_optim.apply_gradients(zip(g_gradients, self.G_vars))
-                        self.E_optim.apply_gradients(zip(e_gradients, self.E_vars))
-                        self.DE_optim.apply_gradients(zip(de_gradients, self.DE_vars))
-                        self.D_optim.apply_gradients(zip(d_gradients, self.D_vars))
-
+                @tf.function
+                def train_nondet_grad(global_step, *inputs):
+                    def train_fn(global_step, *inputs):
+                        with tf.GradientTape(persistent=True) as tape:
+                            losses, outputs, _, summaries_nondet = self.execute_model(self.batch_size, global_step, *inputs)
+                        self.G_nondet_optim.apply_gradients(zip(tape.gradient(losses.g_nondet_loss, self.G_nondet_vars), self.G_nondet_vars))
+                        self.DE_nondet_optim.apply_gradients(zip(tape.gradient(losses.de_nondet_loss, self.DE_nondet_vars), self.DE_nondet_vars))
+                        self.D_nondet_optim.apply_gradients(zip(tape.gradient(losses.d_nondet_loss, self.D_nondet_vars), self.D_nondet_vars))
+                        losses = (losses.g_det_loss, losses.de_det_loss, losses.g_nondet_loss, losses.de_nondet_loss, losses.d_nondet_loss)
+                        summaries_nondet()
                         global_step.assign_add(1)
-
                         return tf.convert_to_tensor(global_step), losses, outputs 
-                    
-                    print("S0", time.time()) 
-                    result = distribute_strategy.experimental_run_v2(step_fn, args=(global_step, inputs))
 
-                    print("S1", time.time()) 
-                    result_global_step, result_losses, result_outputs = result
+                    tf.print("E0", time.time()) 
+                    result_counter, result_losses, result_outputs = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
                    
-                    print("S2", time.time(), result_global_step)
-                    print("S2", time.time(), result_losses)
-                    print("S2", time.time(), result_outputs)
-     
-                    reduced_global_step = tf.reduce_mean(distribute_strategy.experimental_local_results(result_global_step))
-                    print("S3", time.time(), reduced_global_step)
+                    tf.print("E1", time.time())
+                    reduced_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
+
+                    tf.print("E2", time.time())
                     reduced_losses = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses))
-                    print("S4", time.time(), reduced_losses)
+                    
+                    tf.print("E3", time.time())
                     reduced_outputs = list(map(lambda result_output: tf.concat(distribute_strategy.experimental_local_results(result_output), axis=0), result_outputs))
-                    print("S5", time.time(), reduced_outputs)
 
-                    return reduced_global_step, reduced_losses, reduced_outputs
-
+                    tf.print("E4", time.time())
+                    return reduced_counter, reduced_losses, reduced_outputs
 
                 # training loop
                 for inputs in dataset:
                     print("L1", time.time())
                     with self.writer.as_default():
-                        result = train_step(global_step, inputs)
+                        print("L2DET", time.time())
+                        train_det_grad(global_step, *map(lambda t:t[0], inputs))
+                                               
+                        print("L2NONDET", time.time())
+                        counter, losses, outputs = train_nondet_grad(global_step, *map(lambda t:t[1], inputs))
 
-                    print("L2", time.time())
+                    print("L3",  time.time())
                     self.writer.flush()
 
-                    print("L3", time.time())
-                    [counter, losses, outputs] = result
-
-                    print("L4", time.time())
+                    print("L4",  time.time())
                     epoch = (counter-1) // self.iteration 
                     idx = (counter-1) % self.iteration
 
-                    print("L5", time.time())
+                    print("L5",  time.time())
                     self.report_losses(counter, epoch, idx, time.time() - start_time, *losses)
                     #tf.py_function(func=self.report_losses, inp=(counter, epoch, idx, time.time() - start_time, *losses), Tout=[])
 
-                    print("L6", time.time())
-                    if (idx+1) % self.print_freq == 0:
+                    if (idx+1) % self.save_freq == 0:
+                        print("L6",  time.time())
                         self.report_outputs(epoch, idx, *map(lambda output: output.numpy(), outputs))
                         #tf.py_function(func=self.report_outputs, inp=(epoch, idx, *outputs), Tout=[])
 
-                    print("L7", time.time())
                     if counter-1 > 0 and (counter-1) % self.save_freq == 0:
+                        print("L7",  time.time())
                         checkpoint_manager.save()
                         #tf.py_function(checkpoint_manager.save, [], [tf.string])
                     
-                    print("L8", time.time())
-
-                # save model for final step
-                checkpoint_manager.save()
-                #tf.py_function(checkpoint_manager.save, [], [tf.string])
-
             train_loop()
 
     @property
