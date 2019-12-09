@@ -811,7 +811,7 @@ class SPADE(object):
 
         discriminator_fun = self.full_discriminator
         [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
-        [fake_nondet_logit, fake_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        [nondet_fake_logit, fake_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
             GP = self.gradient_penalty(real=tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
@@ -821,8 +821,8 @@ class SPADE(object):
         """ Define Loss """
         g_nondet_ce_loss = L1_loss(self.real_x, fake_nondet_x_output)
         g_nondet_vgg_loss = VGGLoss()(self.real_x, fake_nondet_x_output)
-        g_nondet_adv_loss = generator_loss(self.gan_type, fake_nondet_logit)
-        g_nondet_feature_loss = self.feature_weight * feature_loss(nondet_real_logit, fake_nondet_logit)
+        g_nondet_adv_loss = generator_loss(self.gan_type, nondet_fake_logit)
+        g_nondet_feature_loss = self.feature_weight * feature_loss(nondet_real_logit, nondet_fake_logit)
         g_nondet_reg_loss = regularization_loss('generator_nondet')
 
         #g_det_ce_loss = L2_loss(self.real_x, fake_det_x_mean)
@@ -881,8 +881,8 @@ class SPADE(object):
         #e_det_klctx2_loss = kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_logvar, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
         e_det_klctx2_loss = (e_det_priorctx_loss + e_det_negentctx_loss)
 
-        d_nondet_adv_loss = discriminator_loss(self.gan_type, nondet_real_logit, fake_nondet_logit)
-        d_nondet_score_real, d_nondet_score_fake = discriminator_scores(d_nondet_real_logit, d_nondet_fake_logit)
+        d_nondet_adv_loss = discriminator_loss(self.gan_type, nondet_real_logit, nondet_fake_logit)
+        d_nondet_score_real, d_nondet_score_fake = discriminator_scores(nondet_real_logit, nondet_fake_logit)
         d_nondet_score_diff = -d_nondet_score_real + d_nondet_score_fake
         d_nondet_reg_loss = GP + regularization_loss('discriminator_nondet')
 
