@@ -657,7 +657,8 @@ class SPADE(object):
     def prepare_model(self):
         self.vgg_loss = VGGLoss() 
 
-    def execute_model(self, batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot):
+    def execute_model(self, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot):
+        batch_size = tf.shape(real_ctx)[0]
 
         """ Define Generator, Discriminator """
         prior_det_code_mean, prior_det_code_logvar = self.prior_code(batch_size)
@@ -1147,7 +1148,7 @@ class SPADE(object):
                 def build_fn(global_step):
                     fake_batch_size = 1
                     (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot) = self.build_fake_inputs(fake_batch_size)
-                    self.execute_model(fake_batch_size, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
+                    return self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
                 distribute_strategy.experimental_run_v2(build_fn, args=(0,))
             build()
 
@@ -1178,21 +1179,26 @@ class SPADE(object):
             start_time = time.time()
 
             def train_loop():
-                @tf.function
+                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
                 def train_det_grad(global_step, *inputs):
                     def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
-                            losses, _, summaries_det, _ = self.execute_model(self.batch_size, global_step, *inputs)
+                            losses, _, summaries_det, _ = self.execute_model(global_step, *inputs)
                         self.G_det_optim.apply_gradients(zip(tape.gradient(losses.g_det_loss, self.G_det_vars), self.G_det_vars))
                         self.DE_det_optim.apply_gradients(zip(tape.gradient(losses.de_det_loss, self.DE_det_vars), self.DE_det_vars))
+                        losses = (losses.g_det_loss, losses.de_det_loss, losses.g_nondet_loss, losses.de_nondet_loss, losses.d_nondet_loss)
                         summaries_det()
-                    distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
+                        return losses
 
-                @tf.function
+                    result_losses = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
+                    reduced_losses = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses))
+                    return reduced_losses
+
+                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
                 def train_nondet_grad(global_step, *inputs):
                     def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
-                            losses, outputs, _, summaries_nondet = self.execute_model(self.batch_size, global_step, *inputs)
+                            losses, outputs, _, summaries_nondet = self.execute_model(global_step, *inputs)
                         self.G_nondet_optim.apply_gradients(zip(tape.gradient(losses.g_nondet_loss, self.G_nondet_vars), self.G_nondet_vars))
                         self.DE_nondet_optim.apply_gradients(zip(tape.gradient(losses.de_nondet_loss, self.DE_nondet_vars), self.DE_nondet_vars))
                         self.D_nondet_optim.apply_gradients(zip(tape.gradient(losses.d_nondet_loss, self.D_nondet_vars), self.D_nondet_vars))
