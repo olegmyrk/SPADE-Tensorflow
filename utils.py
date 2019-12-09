@@ -18,8 +18,8 @@ class Image_data:
         self.augment_flag = augment_flag
 
         self.dataset_path = dataset_path
-        self.img_dataset_path = os.path.join(dataset_path, 'image')
-        self.segmap_dataset_path = os.path.join(dataset_path, 'segmap')
+        self.img_dataset_path = os.path.join(dataset_path, 'CelebA-HQ-img')
+        self.segmap_dataset_path = os.path.join(dataset_path, 'CelebA-HQ-mask')
 
         self.ctximage = []
         self.image = []
@@ -83,6 +83,10 @@ class Image_data:
                     self.ctximage.append(self.img_dataset_path + "/" + other_key + ".jpg")
                     self.image.append(self.img_dataset_path + "/" + key + ".jpg")
                     self.segmap.append(self.segmap_dataset_path + "/" + key + ".png")
+
+        self.color_value_dict = {(0, 0, 0): 0, (0, 0, 255): 1, (255, 0, 0): 2, (150, 30, 150): 3, (255, 65, 255): 4, (150, 80, 0): 5, (170, 120, 65): 6, (125, 125, 125): 7, (255, 255, 0): 8, (0, 255, 255): 9, (255, 150, 0): 10, (255, 225, 120): 11, (255, 125, 125): 12, (200, 100, 100): 13, (0, 255, 0): 14, (0, 150, 80): 15, (215, 175, 125): 16, (220, 180, 210): 17, (125, 125, 255): 18}
+
+        return
 
         segmap_label_path = os.path.join(self.dataset_path, 'segmap_label.txt')
 
