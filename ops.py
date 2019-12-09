@@ -571,6 +571,21 @@ def L1_mean_loss(x, y):
 
     return loss
 
+def discriminator_scores(real, fake):
+    real_scores = []
+    fake_scores = []
+
+    for i in range(len(fake)):
+        real_score = tf.reduce_mean(input_tensor=real[i][-1])
+        fake_score = tf.reduce_mean(input_tensor=fake[i][-1])
+
+        real_scores.append(real_score)
+        fake_scores.append(fake_score)
+
+    real_score = tf.reduce_mean(input_tensor=real_scores)
+    fake_score = tf.reduce_mean(input_tensor=fake_scores)
+    return real_score, fake_score
+
 def discriminator_loss(loss_func, real, fake):
     loss = []
     real_loss = 0
