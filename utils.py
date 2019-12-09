@@ -19,7 +19,7 @@ class Image_data:
 
         self.dataset_path = dataset_path
         self.img_dataset_path = os.path.join(dataset_path, 'CelebA-HQ-img')
-        self.segmap_dataset_path = os.path.join(dataset_path, 'CelebA-HQ-mask')
+        self.segmap_dataset_path = os.path.join(dataset_path, 'CelebAMask-HQ-mask')
 
         self.ctximage = []
         self.image = []
