@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib import slim
-from scipy import misc
+import imageio
 import os, random
 import numpy as np
 from glob import glob
@@ -18,19 +18,23 @@ class Image_data:
         self.augment_flag = augment_flag
 
         self.dataset_path = dataset_path
-        self.img_dataset_path = os.path.join(dataset_path, 'image')
-        self.segmap_dataset_path = os.path.join(dataset_path, 'segmap')
-        self.segmap_test_dataset_path = os.path.join(dataset_path, 'segmap_test')
+        self.img_dataset_path = os.path.join(dataset_path, 'CelebA-HQ-img')
+        self.segmap_dataset_path = os.path.join(dataset_path, 'CelebAMask-HQ-mask')
 
+        self.ctximage = []
         self.image = []
         self.color_value_dict = {}
         self.segmap = []
-        self.segmap_test = []
 
         self.set_x = set()
 
 
-    def image_processing(self, filename, segmap):
+    def image_processing(self, ctxfilename, filename, segmap):
+        ctx = tf.read_file(ctxfilename)
+        ctx_decode = tf.image.decode_jpeg(ctx, channels=self.channels, dct_method='INTEGER_ACCURATE')
+        ctximg = tf.image.resize_images(ctx_decode, [self.img_height, self.img_width])
+        ctximg = tf.cast(ctximg, tf.float32) / 127.5 - 1
+
         x = tf.read_file(filename)
         x_decode = tf.image.decode_jpeg(x, channels=self.channels, dct_method='INTEGER_ACCURATE')
         img = tf.image.resize_images(x_decode, [self.img_height, self.img_width])
@@ -52,23 +56,38 @@ class Image_data:
         label_map = convert_from_color_segmentation(self.color_value_dict, segmap_img, tensor_type=True)
         segmap_onehot = tf.one_hot(label_map, len(self.color_value_dict))
 
-        return img, segmap_img, segmap_onehot
-
-    def test_image_processing(self, segmap):
-        segmap_x = tf.read_file(segmap)
-        segmap_decode = tf.image.decode_jpeg(segmap_x, channels=self.segmap_channel, dct_method='INTEGER_ACCURATE')
-        segmap_img = tf.image.resize_images(segmap_decode, [self.img_height, self.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-
-        label_map = convert_from_color_segmentation(self.color_value_dict, segmap_img, tensor_type=True)
-        segmap_onehot = tf.one_hot(label_map, len(self.color_value_dict))
-
-        return segmap_img, segmap_onehot
+        return ctximg, img, segmap_img, segmap_onehot
 
     def preprocess(self):
+        #self.image = sorted(glob(self.img_dataset_path + '/*.*'))
+        #self.segmap = sorted(glob(self.segmap_dataset_path + '/*.*'))
 
-        self.image = glob(self.img_dataset_path + '/*.*')
-        self.segmap = glob(self.segmap_dataset_path + '/*.*')
-        self.segmap_test = glob(self.segmap_test_dataset_path + '/*.*')
+        celeba_to_identity = dict(map(lambda s:s.strip().split(" "), open(self.dataset_path + "/identity_CelebA.txt")))
+        identity_to_celeba = {}
+        for celeba, identity in celeba_to_identity.items():
+            if not identity in identity_to_celeba:
+                identity_to_celeba[identity] = [celeba]
+            else:
+                identity_to_celeba[identity].append(celeba)
+
+        key_to_celeba = dict([(str(key),celeba) for key, _, celeba in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebA-HQ-to-CelebA-mapping.txt"))[1:])])
+        celeba_to_key = dict([(celeba,key) for key, celeba in key_to_celeba.items()])
+
+        for key in sorted(key_to_celeba):
+            celeba = key_to_celeba[key]
+            identity = celeba_to_identity[celeba]
+            for other_celeba in identity_to_celeba[identity]:
+                if celeba != other_celeba and other_celeba in celeba_to_key:
+                    other_key = celeba_to_key[other_celeba]
+                    #print("CelebA:", key, celeba, identity, other_celeba, other_key)
+                    self.ctximage.append(self.img_dataset_path + "/" + other_key + ".jpg")
+                    self.image.append(self.img_dataset_path + "/" + key + ".jpg")
+                    self.segmap.append(self.segmap_dataset_path + "/" + key + ".png")
+
+        self.color_value_dict = {(0, 0, 0): 0, (0, 0, 255): 1, (255, 0, 0): 2, (150, 30, 150): 3, (255, 65, 255): 4, (150, 80, 0): 5, (170, 120, 65): 6, (125, 125, 125): 7, (255, 255, 0): 8, (0, 255, 255): 9, (255, 150, 0): 10, (255, 225, 120): 11, (255, 125, 125): 12, (200, 100, 100): 13, (0, 255, 0): 14, (0, 150, 80): 15, (215, 175, 125): 16, (220, 180, 210): 17, (125, 125, 255): 18}
+
+        return
+
         segmap_label_path = os.path.join(self.dataset_path, 'segmap_label.txt')
 
         if os.path.exists(segmap_label_path) :
@@ -187,6 +206,12 @@ def augmentation(image, segmap, augment_height, augment_width):
 
     return image, segmap
 
+def save_segmaps(images, color_map, size, image_path):
+    result = np.zeros(list(images.shape) + [3])
+    for color, color_idx in color_map.items():
+        result[images == color_idx, :] = color
+    return imsave(result, size, image_path)
+
 def save_images(images, size, image_path):
     return imsave(inverse_transform(images), size, image_path)
 
@@ -195,7 +220,7 @@ def inverse_transform(images):
 
 
 def imsave(images, size, path):
-    return misc.imsave(path, merge(images, size))
+    return imageio.imwrite(path, merge(images, size), compress_level=1)
 
 def merge(images, size):
     h, w = images.shape[1], images.shape[2]
