@@ -882,6 +882,8 @@ class SPADE(object):
         e_det_klctx2_loss = (e_det_priorctx_loss + e_det_negentctx_loss)
 
         d_nondet_adv_loss = discriminator_loss(self.gan_type, nondet_real_logit, fake_nondet_logit)
+        d_nondet_score_real, d_nondet_score_fake = discriminator_scores(d_nondet_real_logit, d_nondet_fake_logit)
+        d_nondet_score_diff = -d_nondet_score_real + d_nondet_score_fake
         d_nondet_reg_loss = GP + regularization_loss('discriminator_nondet')
 
         de_det_prior_adv_loss = discriminator_loss(self.code_gan_type, code_det_prior_real_logit, code_det_prior_fake_logit)
@@ -1022,6 +1024,9 @@ class SPADE(object):
         self.summary_g_nondet_adv_loss = tf.summary.scalar("g_nondet_adv_loss", g_nondet_adv_loss)
         
         self.summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss", d_nondet_adv_loss)
+        self.summary_d_nondet_score_real = tf.summary.scalar("d_nondet_score_real", d_nondet_score_real)
+        self.summary_d_nondet_score_fake = tf.summary.scalar("d_nondet_score_fake", d_nondet_score_fake)
+        self.summary_d_nondet_score_diff = tf.summary.scalar("d_nondet_score_diff", d_nondet_score_diff)
         self.summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss", d_nondet_reg_loss)
 
         self.summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss", de_det_prior_adv_loss)
@@ -1038,7 +1043,7 @@ class SPADE(object):
 
         g_nondet_summary_list = [self.summary_g_nondet_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl2_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_prior_adv_loss, self.summary_e_nondet_gen_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_prior2_loss, self.summary_e_nondet_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negentctx_loss, self.summary_e_nondet_prior_loss, self.summary_e_nondet_prior2_loss, self.summary_e_nondet_negent_loss]
         g_det_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_segmapce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_g_det_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl2_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_prior_adv_loss, self.summary_e_det_gen_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_klctx_loss, self.summary_e_det_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_prior2_loss, self.summary_e_det_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negentctx_loss, self.summary_e_det_prior_loss, self.summary_e_det_prior2_loss, self.summary_e_det_negent_loss]
-        d_summary_list = [self.summary_global_step, self.summary_d_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
+        d_summary_list = [self.summary_global_step, self.summary_d_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_score_real, self.summary_d_nondet_score_fake, self.summary_d_nondet_score_diff, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
         de_summary_list = [self.summary_de_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss] + code_det_prior_real_summary + code_det_prior_fake_summary + code_nondet_prior_real_summary + code_nondet_prior_fake_summary + [self.summary_de_det_gen_adv_loss, self.summary_de_det_gen_reg_loss, self.summary_de_nondet_gen_adv_loss, self.summary_de_nondet_gen_reg_loss] + code_det_gen_real_summary + code_det_gen_fake_summary + code_nondet_gen_real_summary + code_nondet_gen_fake_summary
 
         self.G_nondet_loss = tf.summary.merge(g_nondet_summary_list)
