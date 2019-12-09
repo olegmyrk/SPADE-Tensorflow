@@ -1129,7 +1129,7 @@ class SPADE(object):
                     epoch, idx, self.iteration, time.time() - start_time, d_loss))
                 sys.stdout.flush()
 
-                if np.mod(idx + 1, self.save_freq) == 0:
+                if np.mod(idx + 1, self.print_freq) == 0:
                     real_ctx_images, real_x_images, real_x_segmap, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x, random_dist_fake_det_x, random_dist_fake_det_x_segmap, random_dist_fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x = self.sess.run(
                         [self.real_ctx, self.real_x, self.real_x_segmap, self.fake_det_x, self.fake_det_x_var, self.fake_det_x_segmap, self.fake_nondet_x, self.random_gen_fake_det_x, self.random_gen_fake_det_x_segmap, self.random_gen_fake_nondet_x, self.random_dist_fake_det_x, self.random_dist_fake_det_x_segmap, self.random_dist_fake_nondet_x, self.random_fake_det_x, self.random_fake_det_x_segmap, self.random_fake_nondet_x], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
