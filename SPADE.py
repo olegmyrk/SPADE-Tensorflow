@@ -842,8 +842,8 @@ class SPADE(object):
         e_det_klctx2_loss = (e_det_priorctx_loss + e_det_negentctx_loss)
 
         d_nondet_adv_loss = discriminator_loss(self.gan_type, d_nondet_real_logit, d_nondet_fake_logit)
-        d_nondet_real_score, d_nondet_fake_score = discriminator_scores(d_nondet_real_logit, d_nondet_fake_logit)
-        d_nondet_score_diff = -d_nondet_real_score + d_nondet_fake_score
+        d_nondet_score_real, d_nondet_score_fake = discriminator_scores(d_nondet_real_logit, d_nondet_fake_logit)
+        d_nondet_score_diff = -d_nondet_score_real + d_nondet_score_fake
         d_nondet_reg_loss = GP + regularization_loss('discriminator_nondet_x')
 
         de_det_prior_adv_loss = discriminator_loss(self.code_gan_type, code_det_prior_real_logit, code_det_prior_fake_logit)
@@ -951,8 +951,8 @@ class SPADE(object):
             summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss", d_nondet_adv_loss, step=global_step)
             summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss", d_nondet_reg_loss, step=global_step)
             
-            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_real_score", d_nondet_real_score, step=global_step)
-            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_fake_score", d_nondet_fake_score, step=global_step)
+            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_real", d_nondet_score_real, step=global_step)
+            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_fake", d_nondet_score_fake, step=global_step)
             summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_diff", d_nondet_score_diff, step=global_step)
             
             summary_de_nondet_prior_adv_loss = tf.summary.scalar("de_nondet_prior_adv_loss", de_nondet_prior_adv_loss, step=global_step)
