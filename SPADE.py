@@ -1138,11 +1138,11 @@ class SPADE(object):
             global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, trainable=False)
 
             # prepare model
-            print("> Preparing model")
+            print("> Preparing model", time.time())
             self.prepare_model()
 
             # build model
-            print("> Building model")
+            print("> Building model", time.time())
             @tf.function
             def build():
                 def build_fn(global_step):
@@ -1156,11 +1156,11 @@ class SPADE(object):
             show_all_variables()
 
             # build optimizers
-            print("> Building optimizers")
+            print("> Building optimizers", time.time())
             self.build_optimizers()
 
             # saver to save model
-            print("> Loading checkpoint")
+            print("> Loading checkpoint", time.time())
             checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([(var.name, var) for var in tf.compat.v1.global_variables()]))
             checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
 
@@ -1175,7 +1175,7 @@ class SPADE(object):
                 print(" [!] Load failed...")
 
             # record start time
-            print("> Training")
+            print("> Training", time.time())
             start_time = time.time()
 
             def train_loop():
@@ -1217,6 +1217,8 @@ class SPADE(object):
 
                 # training loop
                 for inputs_idx, inputs in enumerate(dataset):
+                    print("> Training step %s" % (inputs_idx,), time.time())
+
                     print("L1", time.time())
                     with self.writer.as_default():
                         if inputs_idx % 2 == 0:
