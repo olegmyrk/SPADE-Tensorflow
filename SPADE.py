@@ -167,8 +167,8 @@ class SPADE(object):
         with tf.variable_scope(scope, reuse=reuse):
             x, channel = self.encoder_base(x_init, self.ch)
 
-            mean = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_mean')
-            var = fully_connected(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_var')
+            mean = fully_connected(x, channel // 2, use_bias=True, sn=False, scope='linear_mean')
+            var = fully_connected(x, channel // 2, use_bias=True, sn=False, scope='linear_var')
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
     def prior_code(self, batch_size, channel_multiplier=4):
@@ -203,16 +203,16 @@ class SPADE(object):
                 
             flow_bijector = tfb.Chain(list(reversed(bijectors[:-1])))
 
-            mvn_loc = fully_connected(context, units=out_channel, scope='mvn_loc')
-            mvn_scale_diag = epsilon + tf.math.sigmoid(fully_connected(context, units=out_channel, scope='mvn_scale_logdiag'))
+            mvn_loc = fully_connected(context, units=out_channel, sn=False, scope='mvn_loc')
+            mvn_scale_diag = epsilon + tf.math.sigmoid(fully_connected(context, units=out_channel, sn=False, scope='mvn_scale_logdiag'))
 
             #import correlation_cholesky
             #mvn_corr_bijector = correlation_cholesky.CorrelationCholesky(name=scope + "/CorrelationCholesky")
-            #mvn_corr = mvn_corr_bijector.forward(fully_connected(context, units=(out_channel-1)*out_channel/2, scope='mvn_corr_seed'))
+            #mvn_corr = mvn_corr_bijector.forward(fully_connected(context, units=(out_channel-1)*out_channel/2, sn=False, scope='mvn_corr_seed'))
             #mvn_scale = tf.linalg.transpose(mvn_corr * tf.expand_dims(mvn_scale_diag,2)) * tf.expand_dims(mvn_scale_diag,2)
             #mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
-            #_, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, scope='mvn_scale_seed'), [-1, out_channel, out_channel]), full_matrices=True)
+            #_, mvn_scale_u, _ = tf.linalg.svd(tf.reshape(fully_connected(context, units=out_channel*out_channel, sn=False, scope='mvn_scale_seed'), [-1, out_channel, out_channel]), full_matrices=True)
             #mvn_scale = tf.linalg.matmul(tf.matmul(mvn_scale_u, mvn_scale_diag), tf.linalg.transpose(mvn_scale_u))
             #mvn_dist = tfd.MultivariateNormalFullCovariance(mvn_loc, mvn_scale, name=scope + "/MultivariateNormalFullCovariance")
 
@@ -266,7 +266,7 @@ class SPADE(object):
             #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
             #    context = lrelu(context, 0.2)
             
-            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=self.sn, scope='linear_noise')
+            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=False, scope='linear_noise')
 
             if self.num_upsampling_layers == 'less':
                 num_up_layers = 4
@@ -337,10 +337,10 @@ class SPADE(object):
         with tf.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
-            #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
+            #    context = fully_connected(context, context_ch, use_bias=True, sn=False, scope='linear_context_' + str(i))
             #    context = lrelu(context, 0.2)
             
-            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=self.sn, scope='linear_noise')
+            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=False, scope='linear_noise')
 
             if self.num_upsampling_layers == 'less':
                 num_up_layers = 4
@@ -409,10 +409,10 @@ class SPADE(object):
         with tf.variable_scope(scope, reuse=reuse):
 
             #for i in range(context_depth):
-            #    context = fully_connected(context, context_ch, use_bias=True, sn=self.sn, scope='linear_context_' + str(i))
+            #    context = fully_connected(context, context_ch, use_bias=True, sn=False, scope='linear_context_' + str(i))
             #    context = lrelu(context, 0.2)
             
-            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=self.sn, scope='linear_noise')
+            x = fully_connected(z, z.get_shape()[-1], use_bias=True, sn=False, scope='linear_noise')
 
             if self.num_upsampling_layers == 'less':
                 num_up_layers = 4
@@ -479,17 +479,13 @@ class SPADE(object):
     def discriminator_code(self, x, reuse=False, scope=None, label=None):
         channel = x.get_shape()[-1]
         with tf.variable_scope(scope, reuse=reuse):
-            x = fully_connected(x, channel * 10, use_bias=True, sn=self.sn, scope='linear_x_1')
-            x = lrelu(x, 0.2)
+            x = constin_fcblock(x, channel * 10, use_bias=True, sn=self.sn, norm=False, scope='linear_x_1')
 
-            x = fully_connected(x, channel * 10, use_bias=True, sn=self.sn, scope='linear_x_2')
-            x = lrelu(x, 0.2)
+            x = constin_fcblock(x, channel * 10, use_bias=True, sn=self.sn, norm=True, scope='linear_x_2')
 
-            x = fully_connected(x, channel * 10, use_bias=True, sn=self.sn, scope='linear_x_3')
-            x = lrelu(x, 0.2)
+            x = constin_fcblock(x, channel * 10, use_bias=True, sn=self.sn, norm=True, scope='linear_x_3')
 
-            x = fully_connected(x, channel * 10, use_bias=True, sn=self.sn, scope='linear_x_4')
-            x = lrelu(x, 0.2)
+            x = constin_fcblock(x, channel * 10, use_bias=True, sn=self.sn, norm=True, scope='linear_x_4')
 
             z = fully_connected(x, 1, sn=self.sn, scope='linear_z')
 
