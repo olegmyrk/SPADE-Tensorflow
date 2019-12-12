@@ -107,6 +107,7 @@ def main():
     tf.get_logger().setLevel('DEBUG')
     for gpu in tf.config.experimental.list_physical_devices('GPU'):
         tf.config.experimental.set_memory_growth(gpu, True)
+    tf.config.optimizer.set_experimental_options({ 'disable_meta_optimizer': True })
 
     # Create GAN
     gan = SPADE(args)

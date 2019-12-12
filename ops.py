@@ -517,7 +517,7 @@ def spectral_norm(w, iteration=1):
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
-    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, synchronization=tf.compat.v2.VariableSynchronization.ON_READ, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
+    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.VariableAggregation.SUM)#, synchronization=tf.compat.v2.VariableSynchronization.ON_READ, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
 
     u_hat = u
     v_hat = None
