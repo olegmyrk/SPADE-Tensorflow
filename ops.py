@@ -448,11 +448,11 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.
 
         return x
 
-def cprogressive_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None):
+def cprogressive_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
         x = cprogressive(context, segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='norm_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
@@ -470,8 +470,8 @@ def cprogressive_resblock(context, segmap, x_init, channels, use_bias=True, sn=F
         return x + x_init
 
 
-def cprogressive(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
-    with tf.variable_scope(scope) :
+def cprogressive(context, segmap, x_init, channels, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None) :
+    with tf.compat.v1.variable_scope(scope, reuse=reuse) :
         #x = param_free_norm(x_init)
         x = batch_norm(x_init, scope="batch_norm")
 
