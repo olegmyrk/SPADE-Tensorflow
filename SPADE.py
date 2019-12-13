@@ -733,48 +733,48 @@ class SPADE(object):
         random_gen_nondet_code = self.generator_code(tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_supercode, scope="generator_gen_nondet_code")[0]
         random_simple_nondet_code = z_sample(*self.prior_code(batch_size))
 
-        fake_full_det_x_code = tf.concat([fake_det_x_full_ctxcode],-1)
+        fake_full_det_x_code = tf.concat([fake_det_x_code, fake_det_x_full_ctxcode],-1)
         fake_full_det_x_z = tf.concat([fake_det_x_code],-1)
         fake_det_x_features, fake_det_x_stats = self.generator(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det")
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
         
-        fake_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
-        fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_det_x_code)],-1) 
+        fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
+        fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_full_det_x_z)],-1) 
         fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
         #fake_nondet_x_output = self.generator_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=False, scope="generator_nondet")
         fake_nondet_x_output = self.generator_features(fake_full_nondet_x_code, map(tf.stop_gradient, fake_det_x_features), z=fake_full_nondet_x_z, reuse=False, scope="generator_nondet")
 
-        random_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
+        random_full_det_x_code = tf.concat([random_det_code, fake_det_x_full_ctxcode], -1)
         random_full_det_x_z = tf.concat([random_det_code], -1)
         random_fake_det_x_features, random_fake_det_x_stats = self.generator(random_full_det_x_code, z=random_full_det_x_z, reuse=True, scope="generator_det")
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
         random_fake_det_x_mean, random_fake_det_x_var = random_fake_det_x_stats[0]
 
-        random_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1) 
-        random_full_nondet_x_z = tf.concat([random_nondet_code, random_det_code], -1) 
+        random_full_nondet_x_code = tf.concat([random_nondet_code, fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
+        random_full_nondet_x_z = tf.concat([random_nondet_code, random_full_det_x_z], -1) 
         #random_fake_nondet_x_output = self.generator_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_fake_nondet_x_output = self.generator_features(random_full_nondet_x_code, random_fake_det_x_features, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
-        random_gen_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
+        random_gen_full_det_x_code = tf.concat([random_gen_det_code, fake_det_x_full_ctxcode], -1)
         random_gen_full_det_x_z = tf.concat([random_gen_det_code], -1)
         random_gen_fake_det_x_features, random_gen_fake_det_x_stats = self.generator(random_gen_full_det_x_code, z=random_gen_full_det_x_z, reuse=True, scope="generator_det")
         random_gen_fake_det_x_scaffold = random_gen_fake_det_x_features#tf.concat([random_gen_fake_det_x_stats[0][0], random_gen_fake_det_x_stats[1]], -1)
         random_gen_fake_det_x_mean, random_gen_fake_det_x_var = random_gen_fake_det_x_stats[0]
 
-        random_gen_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1) 
-        random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_det_code], -1) 
+        random_gen_full_nondet_x_code = tf.concat([random_gen_nondet_code, fake_nondet_x_full_ctxcode, random_gen_full_det_x_code], -1) 
+        random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_full_det_x_z], -1) 
         #random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_gen_fake_nondet_x_output = self.generator_features(random_gen_full_nondet_x_code, random_gen_fake_det_x_features, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
-        random_simple_full_det_x_code = tf.concat([fake_det_x_full_ctxcode], -1)
+        random_simple_full_det_x_code = tf.concat([random_simple_det_code, fake_det_x_full_ctxcode], -1)
         random_simple_full_det_x_z = tf.concat([random_simple_det_code], -1)
         random_simple_fake_det_x_features, random_simple_fake_det_x_stats = self.generator(random_simple_full_det_x_code, z=random_simple_full_det_x_z, reuse=True, scope="generator_det")
         random_simple_fake_det_x_scaffold = random_simple_fake_det_x_features#tf.concat([random_simple_fake_det_x_stats[0][0], random_simple_fake_det_x_stats[1]], -1)
         random_simple_fake_det_x_mean, random_simple_fake_det_x_var = random_simple_fake_det_x_stats[0]
 
-        random_simple_full_nondet_x_code = tf.concat([fake_nondet_x_full_ctxcode, fake_det_x_full_ctxcode], -1)
-        random_simple_full_nondet_x_z = tf.concat([random_simple_nondet_code, random_simple_det_code], -1)
+        random_simple_full_nondet_x_code = tf.concat([random_simple_nondet_code, fake_nondet_x_full_ctxcode, random_simple_full_det_x_code], -1)
+        random_simple_full_nondet_x_z = tf.concat([random_simple_nondet_code, random_simple_full_det_x_z], -1)
         #random_simple_fake_nondet_x_output = self.generator_spatial(random_simple_full_nondet_x_code, random_simple_fake_det_x_scaffold, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_simple_fake_nondet_x_output = self.generator_features(random_simple_full_nondet_x_code, random_simple_fake_det_x_features, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
