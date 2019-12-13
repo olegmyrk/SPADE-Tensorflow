@@ -442,6 +442,59 @@ def cspade(context, segmap, x_init, channels, use_bias=True, sn=False, scope=Non
 
         return x
 
+def cprogressive_resblock(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None):
+    channel_in = x_init.get_shape().as_list()[-1]
+    channel_middle = min(channel_in, channels)
+
+    with tf.variable_scope(scope) :
+        x = cprogressive(context, segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='norm_1')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
+
+        #x = cprogressive(context, segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
+        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
+        x = lrelu(x, 0.2)
+        x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
+
+        if channel_in != channels :
+            #x_init = cprogressive(context, segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
+            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
+            x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
+
+        return x + x_init
+
+
+def cprogressive(context, segmap, x_init, channels, use_bias=True, sn=False, scope=None) :
+    with tf.variable_scope(scope) :
+        #x = param_free_norm(x_init)
+        x = batch_norm(x_init, scope="batch_norm")
+
+        _, x_h, x_w, _ = x_init.get_shape().as_list()
+        _, segmap_h, segmap_w, _ = segmap.get_shape().as_list()
+
+        factor_h = segmap_h // x_h  # 256 // 4 = 64
+        factor_w = segmap_w // x_w
+
+        context_gamma = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_gamma')
+        context_beta = fully_connected(context, units=channels, use_bias=use_bias, sn=sn, scope='linear_beta')
+
+        context_shape = [-1, 1, 1, channels]
+        context_gamma = tf.reshape(context_gamma, context_shape)
+        context_beta = tf.reshape(context_beta, context_shape)
+
+        if factor_h != 1 or factor_w != 1:
+            segmap_down = down_sample(segmap, factor_h, factor_w)
+        else:
+            segmap_down = segmap
+
+        #segmap_gamma = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_gamma')
+        segmap_beta = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_beta')
+
+        #x = x * (1 + (context_gamma + segmap_gamma)) + (context_beta + segmap_beta)
+        x = (x * (1 + context_gamma) + context_beta) + segmap_beta
+
+        return x
+
 def param_free_norm(x, epsilon=1e-5) :
     x_mean, x_var = tf.nn.moments(x, axes=[1, 2], keep_dims=True)
     x_std = tf.sqrt(x_var + epsilon)
