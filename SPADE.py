@@ -18,6 +18,7 @@ class SPADE(object):
         self.model_name = 'SPADE'
         self.train_prior = args.train_prior
         self.train_gen = args.train_gen
+        self.train_det = args.train_det
         self.train_nondet = args.train_nondet
 
         self.checkpoint_dir = args.checkpoint_dir
@@ -1247,10 +1248,10 @@ class SPADE(object):
                         print("> Training step %s" % (inputs_idx,), time.time())
 
                         print("L1", time.time())
-                        if not self.train_nondet:
+                        if self.train_det:
                             print("L2DET", time.time())
                             counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad(global_step, self.train_prior, self.train_gen, *inputs)
-                        else:
+                        if self.train_nondet:
                             print("L2NONDET", time.time())
                             counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_random_simple_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad(global_step, self.train_prior, self.train_gen, *inputs)
 
