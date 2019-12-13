@@ -355,32 +355,27 @@ class SPADE(object):
             x = fully_connected(x, units=z_height * z_width * channel, use_bias=True, sn=False, scope='linear_x')
             x = tf.reshape(x, [-1, z_height, z_width, channel])
 
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
-            x = x + features.pop()
+            x = cprogressive_resblock(context, features.pop(), x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_0')
 
             x = up_sample(x, scale_factor=2)
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
-            x = x + features.pop()
+            x = cprogressive_resblock(context, features.pop(), x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_1')
 
             if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
 
-            x = adain_resblock(context, x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
-            x = x + features.pop()
+            x = cprogressive_resblock(context, features.pop(), x, channels=channel, use_bias=True, sn=self.sn, scope='resblock_fix_2')
 
             for i in range(4) :
                 x = up_sample(x, scale_factor=2)
-                x = adain_resblock(context, x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
-                x = x + features.pop()
+                x = cprogressive_resblock(context, features.pop(), x, channels=channel//2, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
 
                 channel = channel // 2
                 # 512 -> 256 -> 128 -> 64
 
             if self.num_upsampling_layers == 'most':
                 x = up_sample(x, scale_factor=2)
-            #    x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
-            x = adain_resblock(context, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
-            x = x + features.pop()
+            #    x = cprogressive_resblock(context, features.pop(), x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
+            x = cprogressive_resblock(context, features.pop(), x, channels=channel // 2, use_bias=True, sn=self.sn, scope='resblock_4')
 
             x = lrelu(x, 0.2)
             x = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
@@ -838,12 +833,12 @@ class SPADE(object):
         de_nondet_gen_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_gen_real_logit, code_nondet_gen_fake_logit)
         de_nondet_gen_reg_loss = regularization_loss('discriminator_nondet_gen_code')
 
-        g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + tf.zeros_like(e_nondet_prior_adv_loss) + e_nondet_reg_loss + 0.05*(e_nondet_prior_loss + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+        g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 10*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + 0.05*(e_nondet_prior_loss + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
         gp_nondet_loss = e_nondet_gen_adv_loss + 0.05*(e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss))) + 0.0001*e_nondet_klctx2_loss
         de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
         d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
-        g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + tf.zeros_like(e_det_prior_adv_loss) + e_det_reg_loss + 0.05*(e_det_prior_loss + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+        g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + 0.05*(e_det_prior_loss + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
         gp_det_loss = e_det_gen_adv_loss + 0.05*(e_det_prior2_loss + (g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss))) + 0.0001*e_det_klctx2_loss
         de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss
 
