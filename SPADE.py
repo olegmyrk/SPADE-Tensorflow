@@ -17,6 +17,7 @@ class SPADE(object):
 
         self.model_name = 'SPADE'
         self.train_prior = args.train_prior
+        self.train_gen = args.train_gen
         self.train_nondet = args.train_nondet
 
         self.checkpoint_dir = args.checkpoint_dir
@@ -1119,8 +1120,9 @@ class SPADE(object):
 
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
-        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=16*distributed_batch_size).batch(distributed_batch_size)
-        dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+        dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=64*distributed_batch_size).batch(distributed_batch_size)
+        #dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+        dataset = dataset.prefetch(16)
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
 
         with distribute_strategy.scope():
@@ -1170,13 +1172,13 @@ class SPADE(object):
 
             def train_loop():
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_det_grad(global_step, train_prior, *inputs):
+                def train_det_grad(global_step, train_prior, train_gen, *inputs):
                     def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
                             inputs, (losses_det, outputs_det, summaries_det), (outputs_random_simple_det, outputs_random_det, outputs_random_gen_det), _, _ = self.execute_model(global_step, *inputs)
                         if train_prior:
                             self.GP_det_optim.apply_gradients(zip(tape.gradient(losses_det.gp_det_loss, self.GP_det_vars), self.GP_det_vars))
-                        else:
+                        if train_gen:
                             self.G_det_optim.apply_gradients(zip(tape.gradient(losses_det.g_det_loss, self.G_det_vars), self.G_det_vars))
                             self.DE_det_optim.apply_gradients(zip(tape.gradient(losses_det.de_det_loss, self.DE_det_vars), self.DE_det_vars))
                         losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
@@ -1203,13 +1205,13 @@ class SPADE(object):
                     return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_random_simple_det, converted_outputs_random_det, converted_outputs_random_gen_det 
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_nondet_grad(global_step, train_prior, *inputs):
+                def train_nondet_grad(global_step, train_prior, train_gen, *inputs):
                     def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
                             inputs, (losses_det, outputs_det, summaries_det), (outputs_random_simple_det, outputs_random_det, outputs_random_gen_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_random_simple_nondet, outputs_random_nondet, outputs_random_gen_nondet) = self.execute_model(global_step, *inputs)
                         if train_prior:
                             self.GP_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.gp_nondet_loss, self.GP_nondet_vars), self.GP_nondet_vars))
-                        else:
+                        if train_gen:
                             self.G_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.g_nondet_loss, self.G_nondet_vars), self.G_nondet_vars))
                             self.DE_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.de_nondet_loss, self.DE_nondet_vars), self.DE_nondet_vars))
                             self.D_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.d_nondet_loss, self.D_nondet_vars), self.D_nondet_vars))
@@ -1252,10 +1254,10 @@ class SPADE(object):
                         print("L1", time.time())
                         if not self.train_nondet:
                             print("L2DET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad(global_step, self.train_prior, *inputs)
+                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad(global_step, self.train_prior, self.train_gen, *inputs)
                         else:
                             print("L2NONDET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_random_simple_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad(global_step, self.train_prior, *inputs)
+                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_random_simple_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad(global_step, self.train_prior, self.train_gen, *inputs)
 
                         print("L4",  time.time())
                         epoch = (counter-1) // self.iteration 

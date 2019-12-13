@@ -7,7 +7,8 @@ def parse_args():
     desc = "Tensorflow implementation of SPADE"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
-    parser.add_argument('--train_prior', type=str2bool, default=False, help='train gen/prior mode')
+    parser.add_argument('--train_prior', type=str2bool, default=True, help='train prior mode')
+    parser.add_argument('--train_gen', type=str2bool, default=True, help='train gen mode')
     parser.add_argument('--train_nondet', type=str2bool, default=False, help='train det/nondet mode')
     parser.add_argument('--dataset', type=str, default='spade_celebA', help='dataset_name')
 
