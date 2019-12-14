@@ -8,6 +8,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
     parser.add_argument('--dataset', type=str, default='spade_celebA', help='dataset_name')
+    parser.add_argument('--train_det', type=str2bool, default=True, help='train det mode')
+    parser.add_argument('--train_nondet', type=str2bool, default=True, help='train nondet mode')
 
     parser.add_argument('--epoch', type=int, default=100, help='The number of epochs to run')
     parser.add_argument('--iteration', type=int, default=10000, help='The number of training iterations')

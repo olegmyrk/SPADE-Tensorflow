@@ -16,6 +16,8 @@ class SPADE(object):
     def __init__(self, sess, args):
 
         self.model_name = 'SPADE'
+        self.train_det = args.train_det
+        self.train_nondet = args.train_nondet
 
         self.sess = sess
         self.checkpoint_dir = args.checkpoint_dir
@@ -895,8 +897,9 @@ class SPADE(object):
 
             self.g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + 0*g_nondet_ce_loss + e_nondet_prior_adv_loss + e_nondet_reg_loss + e_nondet_gen_adv_loss + 0.05*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (e_nondet_gen_adv_loss + g_nondet_code_ce_loss + 0.1*(e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
             self.g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + e_det_prior_adv_loss + e_det_reg_loss + e_det_gen_adv_loss + 0.05*(0*e_det_prior_loss + e_det_prior2_loss + (e_det_gen_adv_loss + g_det_code_ce_loss + 0.1*(e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
-            self.de_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
-            self.d_loss = d_nondet_adv_loss + d_nondet_reg_loss
+            self.de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
+            self.de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss
+            self.d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
         """ Result Image """
         self.fake_det_x = fake_det_x_stats[0][0]
@@ -922,8 +925,9 @@ class SPADE(object):
         t_vars = tf.trainable_variables()
         G_nondet_vars = [var for var in t_vars if 'generator_nondet' in var.name or 'encoder_nondet_code' in var.name or 'generator_nondet_code' in var.name or 'prior_nondet_supercode' in var.name or 'encoder_nondet_supercode' in var.name or 'encoder_nondet_ctxcode' in var.name or 'generator_gen_nondet_code' in var.name]
         G_det_vars = [var for var in t_vars if 'generator_det' in var.name or 'encoder_det_code' in var.name in var.name or 'generator_det_code' in var.name or 'prior_det_supercode' in var.name or 'encoder_det_supercode' in var.name or 'encoder_det_ctxcode' in var.name or 'generator_gen_det_code' in var.name]
-        DE_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_det_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
-        D_vars = [var for var in t_vars if 'discriminator_nondet' in var.name]
+        DE_nondet_vars = [var for var in t_vars if 'discriminator_nondet_prior_code' in var.name or 'discriminator_gen_nondet_code' in var.name]
+        DE_det_vars = [var for var in t_vars if 'discriminator_det_prior_code' in var.name or 'discriminator_gen_det_code' in var.name]
+        D_nondet_vars = [var for var in t_vars if 'discriminator_nondet' in var.name]
 
         if self.TTUR :
             beta1 = 0.0
@@ -940,16 +944,18 @@ class SPADE(object):
 
         self.G_nondet_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_nondet_loss, var_list=G_nondet_vars)
         self.G_det_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.g_det_loss, var_list=G_det_vars)
-        self.DE_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.de_loss, var_list=DE_vars)
-        self.D_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars, global_step = self.global_step)
+        self.DE_nondet_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.de_nondet_loss, var_list=DE_nondet_vars)
+        self.DE_det_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.de_det_loss, var_list=DE_det_vars)
+        self.D_nondet_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_nondet_loss, var_list=D_nondet_vars, global_step = self.global_step)
 
         """" Summary """
         self.summary_global_step = tf.summary.scalar("global_step", self.global_step)
 
         self.summary_g_nondet_loss = tf.summary.scalar("g_nondet_loss", self.g_nondet_loss)
         self.summary_g_det_loss = tf.summary.scalar("g_det_loss", self.g_det_loss)
-        self.summary_de_loss = tf.summary.scalar("de_loss", self.de_loss)
-        self.summary_d_loss = tf.summary.scalar("d_loss", self.d_loss)
+        self.summary_de_nondet_loss = tf.summary.scalar("de_loss", self.de_nondet_loss)
+        self.summary_de_det_loss = tf.summary.scalar("de_loss", self.de_det_loss)
+        self.summary_d_nondet_loss = tf.summary.scalar("d_nondet_loss", self.d_nondet_loss)
 
         self.summary_g_det_code_ce_loss = tf.summary.scalar("g_det_code_ce_loss", g_det_code_ce_loss)
         self.summary_e_det_code_kl_loss = tf.summary.scalar("e_det_code_kl_loss", e_det_code_kl_loss)
@@ -1026,13 +1032,15 @@ class SPADE(object):
 
         g_nondet_summary_list = [self.summary_g_nondet_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl2_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_prior_adv_loss, self.summary_e_nondet_gen_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_prior2_loss, self.summary_e_nondet_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negentctx_loss, self.summary_e_nondet_prior_loss, self.summary_e_nondet_prior2_loss, self.summary_e_nondet_negent_loss]
         g_det_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_segmapce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_g_det_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl2_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_prior_adv_loss, self.summary_e_det_gen_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_klctx_loss, self.summary_e_det_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_prior2_loss, self.summary_e_det_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negentctx_loss, self.summary_e_det_prior_loss, self.summary_e_det_prior2_loss, self.summary_e_det_negent_loss]
-        d_summary_list = [self.summary_global_step, self.summary_d_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_score_real, self.summary_d_nondet_score_fake, self.summary_d_nondet_score_diff, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
-        de_summary_list = [self.summary_de_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss] + code_det_prior_real_summary + code_det_prior_fake_summary + code_nondet_prior_real_summary + code_nondet_prior_fake_summary + [self.summary_de_det_gen_adv_loss, self.summary_de_det_gen_reg_loss, self.summary_de_nondet_gen_adv_loss, self.summary_de_nondet_gen_reg_loss] + code_det_gen_real_summary + code_det_gen_fake_summary + code_nondet_gen_real_summary + code_nondet_gen_fake_summary
+        d_nondet_summary_list = [self.summary_global_step, self.summary_d_nondet_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_score_real, self.summary_d_nondet_score_fake, self.summary_d_nondet_score_diff, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
+        de_nondet_summary_list = [self.summary_de_nondet_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss] + code_nondet_prior_real_summary + code_nondet_prior_fake_summary + code_nondet_gen_real_summary + code_nondet_gen_fake_summary
+        de_det_summary_list = [self.summary_de_det_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss] + code_det_prior_real_summary + code_det_prior_fake_summary + code_det_gen_real_summary + code_det_gen_fake_summary
 
         self.G_nondet_loss = tf.summary.merge(g_nondet_summary_list)
         self.G_det_loss = tf.summary.merge(g_det_summary_list)
-        self.D_loss = tf.summary.merge(d_summary_list)
-        self.DE_loss = tf.summary.merge(de_summary_list)
+        self.DE_nondet_loss = tf.summary.merge(de_nondet_summary_list)
+        self.DE_det_loss = tf.summary.merge(de_det_summary_list)
+        self.D_nondet_loss = tf.summary.merge(d_nondet_summary_list)
 
     def train(self):
         # initialize all variables
@@ -1071,37 +1079,54 @@ class SPADE(object):
                 train_feed_dict = {
                     self.lr: lr
                 }
+                print("EPOCH", epoch, idx, time.time())
 
-                # Update D
-                _, d_loss, d_summary_str = self.sess.run([self.D_optim, self.d_loss, self.D_loss], feed_dict=train_feed_dict)
-                self.writer.add_summary(d_summary_str, counter)
+                if self.train_nondet:
+                    # Update D_nondet
+                    print("NONDET:D", epoch, idx, time.time())
+                    _, d_nondet_loss, d_nondet_summary_str = self.sess.run([self.D_nondet_optim, self.d_nondet_loss, self.D_nondet_loss], feed_dict=train_feed_dict)
+                    self.writer.add_summary(d_nondet_summary_str, counter)
 
                 g_nondet_loss = None
                 g_det_loss = None
                 
                 if (counter - 1) % self.n_critic == 0:
-                    # Update DE
-                    _, de_loss, de_summary_str = self.sess.run([self.DE_optim, self.de_loss, self.DE_loss], feed_dict=train_feed_dict)
-                    self.writer.add_summary(de_summary_str, counter)
+                    # Update DE_det
+                    if self.train_det:
+                        print("DET:DE", epoch, idx, time.time())
+                        _, de_det_loss, de_det_summary_str = self.sess.run([self.DE_det_optim, self.de_det_loss, self.DE_det_loss], feed_dict=train_feed_dict)
+                        self.writer.add_summary(de_det_summary_str, counter)
+
+                    # Update DE_nondet
+                    if self.train_nondet:
+                        print("NONDET:DE", epoch, idx, time.time())
+                        _, de_nondet_loss, de_nondet_summary_str = self.sess.run([self.DE_nondet_optim, self.de_nondet_loss, self.DE_nondet_loss], feed_dict=train_feed_dict)
+                        self.writer.add_summary(de_nondet_summary_str, counter)
 
                     if (counter - 1) % (self.n_critic*self.code_n_critic) == 0:
-                        # Update E
-                        det_code_vae, _, g_det_loss, g_det_summary_str = self.sess.run([self.det_code_vae, self.G_det_optim, self.g_det_loss, self.G_det_loss], feed_dict=train_feed_dict)
-                        self.writer.add_summary(g_det_summary_str, counter)
-                        past_g_det_loss = g_det_loss
-                        print("det_code_vae:", det_code_vae) 
+                        if self.train_det:
+                            # Update G_det
+                            print("DET:G", epoch, idx, time.time())
+                            det_code_vae, _, g_det_loss, g_det_summary_str = self.sess.run([self.det_code_vae, self.G_det_optim, self.g_det_loss, self.G_det_loss], feed_dict=train_feed_dict)
+                            self.writer.add_summary(g_det_summary_str, counter)
+                            past_g_det_loss = g_det_loss
+                            #print("det_code_vae:", det_code_vae) 
 
-                        # Update G
-                        nondet_code_vae, _, g_nondet_loss, g_nondet_summary_str = self.sess.run(
-                            [self.nondet_code_vae,
-                             self.G_nondet_optim,
-                             self.g_nondet_loss, self.G_nondet_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
-                        print("nondet_code_vae:", nondet_code_vae) 
+                        if self.train_nondet:
+                            # Update G_nondet
+                            print("NONDET:G", epoch, idx, time.time())
+                            nondet_code_vae, _, g_nondet_loss, g_nondet_summary_str = self.sess.run(
+                                [self.nondet_code_vae,
+                                 self.G_nondet_optim,
+                                 self.g_nondet_loss, self.G_nondet_loss], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+                            #print("nondet_code_vae:", nondet_code_vae) 
 
-                        self.writer.add_summary(g_nondet_summary_str, counter)
-                        past_g_nondet_loss = g_nondet_loss
+                            self.writer.add_summary(g_nondet_summary_str, counter)
+                            past_g_nondet_loss = g_nondet_loss
+                
 
                 # display training status
+                print("STATUS", epoch, idx, time.time())
                 counter += 1
                 if g_nondet_loss == None:
                     g_nondet_loss = past_g_nondet_loss
@@ -1111,13 +1136,16 @@ class SPADE(object):
                     epoch, idx, self.iteration, time.time() - start_time, g_nondet_loss))
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_det_loss: %.8f" % (
                     epoch, idx, self.iteration, time.time() - start_time, g_det_loss))
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, de_loss))
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, d_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_nondet_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, de_nondet_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_deT_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, de_det_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_nondet_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, d_nondet_loss))
                 sys.stdout.flush()
 
                 if np.mod(idx + 1, self.print_freq) == 0:
+                    print("OUTPUT", epoch, idx, time.time())
                     real_ctx_images, real_x_images, real_x_segmap, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_simple_fake_det_x, random_simple_fake_det_x_segmap, random_simple_fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x = self.sess.run(
                         [self.real_ctx, self.real_x, self.real_x_segmap, self.fake_det_x, self.fake_det_x_var, self.fake_det_x_segmap, self.fake_nondet_x, self.random_simple_fake_det_x, self.random_simple_fake_det_x_segmap, self.random_simple_fake_nondet_x, self.random_fake_det_x, self.random_fake_det_x_segmap, self.random_fake_nondet_x, self.random_gen_fake_det_x, self.random_gen_fake_det_x_segmap, self.random_gen_fake_nondet_x], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
@@ -1160,6 +1188,7 @@ class SPADE(object):
                                 './{}/random_gen_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
                 if np.mod(counter - 1, self.save_freq) == 0:
+                    print("SAVE", epoch, idx, time.time())
                     self.save(self.checkpoint_dir, counter)
 
             # After an epoch, start_batch_id is set to zero
