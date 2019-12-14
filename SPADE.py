@@ -1127,8 +1127,7 @@ class SPADE(object):
         dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
         dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=64*distributed_batch_size).batch(distributed_batch_size)
-        #dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-        dataset = dataset.prefetch(16)
+        dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
 
         with distribute_strategy.scope():
