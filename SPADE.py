@@ -645,7 +645,7 @@ class SPADE(object):
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
         supercode_stop_gradient = lambda x: tf.stop_gradient(x)
-        code_stop_gradient = lambda x: x
+        code_stop_gradient = lambda x: tf.stop_gradient(x)
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), channel_multiplier=4, scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
@@ -1012,7 +1012,6 @@ class SPADE(object):
             decay_fn = lambda lr: LinearDecay(lr, self.epoch*self.iteration, self.decay_epoch*self.iteration)
         else:
             decay_fn = lambda lr: lr
-                    
         if self.TTUR :
             beta1 = 0.0
             beta2 = 0.9
