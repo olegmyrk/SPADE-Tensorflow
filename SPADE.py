@@ -1068,7 +1068,9 @@ class SPADE(object):
         # loop for epoch
         start_time = time.time()
         past_g_nondet_loss = -1.
+        past_de_nondet_loss = -1.
         past_g_det_loss = -1.
+        past_de_det_loss = -1.
         lr = self.init_lr
 
         for epoch in range(start_epoch, self.epoch):
@@ -1088,7 +1090,10 @@ class SPADE(object):
                     self.writer.add_summary(d_nondet_summary_str, counter)
 
                 g_nondet_loss = None
+                de_nondet_loss = None
+
                 g_det_loss = None
+                de_det_loss = None
                 
                 if (counter - 1) % self.n_critic == 0:
                     # Update DE_det
@@ -1130,8 +1135,12 @@ class SPADE(object):
                 counter += 1
                 if g_nondet_loss == None:
                     g_nondet_loss = past_g_nondet_loss
+                if de_nondet_loss == None:
+                    de_nondet_loss = past_de_nondet_loss
                 if g_det_loss == None:
                     g_det_loss = past_g_det_loss
+                if de_det_loss == None:
+                    de_det_loss = past_de_det_loss
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_nondet_loss: %.8f" % (
                     epoch, idx, self.iteration, time.time() - start_time, g_nondet_loss))
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_det_loss: %.8f" % (
