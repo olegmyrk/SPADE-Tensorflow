@@ -1067,6 +1067,7 @@ class SPADE(object):
 
         # loop for epoch
         start_time = time.time()
+        past_d_nondet_loss = -1.
         past_g_nondet_loss = -1.
         past_de_nondet_loss = -1.
         past_g_det_loss = -1.
@@ -1083,17 +1084,19 @@ class SPADE(object):
                 }
                 print("EPOCH", epoch, idx, time.time())
 
-                if self.train_nondet:
-                    # Update D_nondet
-                    print("NONDET:D", epoch, idx, time.time())
-                    _, d_nondet_loss, d_nondet_summary_str = self.sess.run([self.D_nondet_optim, self.d_nondet_loss, self.D_nondet_loss], feed_dict=train_feed_dict)
-                    self.writer.add_summary(d_nondet_summary_str, counter)
+                d_nondet_loss = None
 
                 g_nondet_loss = None
                 de_nondet_loss = None
 
                 g_det_loss = None
                 de_det_loss = None
+
+                if self.train_nondet:
+                    # Update D_nondet
+                    print("NONDET:D", epoch, idx, time.time())
+                    _, d_nondet_loss, d_nondet_summary_str = self.sess.run([self.D_nondet_optim, self.d_nondet_loss, self.D_nondet_loss], feed_dict=train_feed_dict)
+                    self.writer.add_summary(d_nondet_summary_str, counter)
                 
                 if (counter - 1) % self.n_critic == 0:
                     # Update DE_det
@@ -1133,6 +1136,8 @@ class SPADE(object):
                 # display training status
                 print("STATUS", epoch, idx, time.time())
                 counter += 1
+                if d_nondet_loss == None:
+                    d_nondet_loss = past_d_nondet_loss
                 if g_nondet_loss == None:
                     g_nondet_loss = past_g_nondet_loss
                 if de_nondet_loss == None:
@@ -1141,16 +1146,16 @@ class SPADE(object):
                     g_det_loss = past_g_det_loss
                 if de_det_loss == None:
                     de_det_loss = past_de_det_loss
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_nondet_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, g_nondet_loss))
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_det_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, g_det_loss))
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_nondet_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, de_nondet_loss))
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_deT_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, de_det_loss))
                 print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_nondet_loss: %.8f" % (
                     epoch, idx, self.iteration, time.time() - start_time, d_nondet_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_nondet_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, g_nondet_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_nondet_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, de_nondet_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f g_det_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, g_det_loss))
+                print("Epoch: [%2d] [%5d/%5d] time: %4.4f de_det_loss: %.8f" % (
+                    epoch, idx, self.iteration, time.time() - start_time, de_det_loss))
                 sys.stdout.flush()
 
                 if np.mod(idx + 1, self.print_freq) == 0:
