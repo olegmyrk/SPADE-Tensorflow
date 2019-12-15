@@ -645,7 +645,7 @@ class SPADE(object):
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
         supercode_stop_gradient = lambda x: tf.stop_gradient(x)
-        code_stop_gradient = lambda x: tf.stop_gradient(x)
+        code_stop_gradient = lambda x: x
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), channel_multiplier=4, scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
@@ -1119,6 +1119,7 @@ class SPADE(object):
                     './{}/{}_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, prefix, epoch, idx + 1))
 
     def train(self):
+<<<<<<< HEAD
         distribute_strategy = tf.distribute.MirroredStrategy()
         distributed_batch_size = distribute_strategy.num_replicas_in_sync * self.batch_size
         print("Distributed replicas: %s" % (distribute_strategy.num_replicas_in_sync,))
@@ -1218,6 +1219,59 @@ class SPADE(object):
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
                 def train_det_grad_discriminate(global_step, train_main, *inputs):
                     return train_det_grad(global_step, train_main, True, *inputs)
+=======
+        # initialize all variables
+        tf.global_variables_initializer().run()
+
+        # saver to save model
+        self.saver = tf.train.Saver(max_to_keep=1000)
+
+        # summary writer
+        self.writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir, self.sess.graph)
+
+        # restore check-point if it exits
+        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
+        if could_load:
+            start_epoch = (int)(checkpoint_counter / self.iteration)
+            start_batch_id = checkpoint_counter - start_epoch * self.iteration
+            counter = checkpoint_counter
+            print(" [*] Load SUCCESS")
+        else:
+            start_epoch = 0
+            start_batch_id = 0
+            counter = 1
+            print(" [!] Load failed...")
+
+        # loop for epoch
+        start_time = time.time()
+        past_g_nondet_loss = -1.
+        past_de_nondet_loss = -1.
+        past_g_det_loss = -1.
+        past_de_det_loss = -1.
+        lr = self.init_lr
+
+        for epoch in range(start_epoch, self.epoch):
+            if self.decay_flag:
+                # lr = self.init_lr * pow(0.5, epoch // self.decay_epoch)
+                lr = self.init_lr if epoch < self.decay_epoch else self.init_lr * (self.epoch - epoch) / (self.epoch - self.decay_epoch)
+            for idx in range(start_batch_id, self.iteration):
+                train_feed_dict = {
+                    self.lr: lr
+                }
+                print("EPOCH", epoch, idx, time.time())
+
+                if self.train_nondet:
+                    # Update D_nondet
+                    print("NONDET:D", epoch, idx, time.time())
+                    _, d_nondet_loss, d_nondet_summary_str = self.sess.run([self.D_nondet_optim, self.d_nondet_loss, self.D_nondet_loss], feed_dict=train_feed_dict)
+                    self.writer.add_summary(d_nondet_summary_str, counter)
+
+                g_nondet_loss = None
+                de_nondet_loss = None
+
+                g_det_loss = None
+                de_det_loss = None
+>>>>>>> 0b033c6f0e873561812da04d7f56321dd1b7d4d7
                 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
                 def train_det_grad_generate(global_step, train_main, *inputs):
