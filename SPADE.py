@@ -188,8 +188,9 @@ class SPADE(object):
             bijectors = []
             for i in range(self.code_dist_num_layers):
                 bijectors.append(tfb.MaskedAutoregressiveFlow(
-                  shift_and_log_scale_fn=conditional_masked_autoregressive_template(
-                      code, hidden_layers=[hidden_channel, hidden_channel], name=scope + "/maf_" + str(i))))
+                  #shift_and_log_scale_fn=tfb.masked_autoregressive_default_template(
+                  shift_and_log_scale_fn=conditional_masked_autoregressive_template(code,
+                      hidden_layers=[hidden_channel, hidden_channel], name=scope + "/maf_" + str(i))))
 
                 bijectors.append(tfb.BatchNormalization(
                     batchnorm_layer=tf.compat.v1.layers.BatchNormalization(
