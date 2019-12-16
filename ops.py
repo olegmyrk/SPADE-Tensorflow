@@ -457,14 +457,14 @@ def cprogressive_resblock(context, segmap, x_init, channels, use_bias=True, sn=F
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
 
-        #x = cprogressive(context, segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
-        x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
+        x = cprogressive(context, segmap, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
+        #x = adain(context, x, channels=channel_middle, use_bias=use_bias, sn=False, scope='norm_2')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channels, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_2')
 
         if channel_in != channels :
-            #x_init = cprogressive(context, segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
-            x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
+            x_init = cprogressive(context, segmap, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
+            #x_init = adain(context, x_init, channels=channel_in, use_bias=use_bias, sn=False, scope='norm_shortcut')
             x_init = conv(x_init, channels=channels, kernel=1, stride=1, use_bias=False, sn=sn, scope='conv_shortcut')
 
         return x + x_init
@@ -493,11 +493,14 @@ def cprogressive(context, segmap, x_init, channels, use_bias=True, sn=False, reu
         else:
             segmap_down = segmap
 
-        #segmap_gamma = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_gamma')
+        #segmap_down = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='preconv')
+        #segmap_down = relu(segmap_down)
+
+        segmap_gamma = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_gamma')
         segmap_beta = conv(segmap_down, channels=channels, kernel=5, stride=1, pad=2, use_bias=use_bias, sn=sn, scope='conv_beta')
 
-        #x = x * (1 + (context_gamma + segmap_gamma)) + (context_beta + segmap_beta)
-        x = (x * (1 + context_gamma) + context_beta) + segmap_beta
+        x = x * (1 + (context_gamma + segmap_gamma)) + (context_beta + segmap_beta)
+        #x = (x * (1 + context_gamma) + context_beta) + segmap_beta
 
         return x
 
@@ -506,6 +509,13 @@ def param_free_norm(x, epsilon=1e-5) :
     x_std = tf.sqrt(x_var + epsilon)
 
     return (x - x_mean) / x_std
+
+def param_free_batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
+        shape = mean.get_shape().as_list()
+        result = tf.nn.batch_normalization(x, mean, var, tf.zeros_like(mean), tf.ones_like(var), epsilon)
+    return result
 
 def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     with tf.compat.v1.variable_scope(scope, reuse=reuse):
