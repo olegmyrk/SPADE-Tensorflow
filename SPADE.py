@@ -1255,7 +1255,7 @@ class SPADE(object):
             variables_to_restore = {}
             for known_variable in tf.global_variables():
                 tensor_name = known_variable.name.split(':')[0]
-                if checkpoint_reader.has_tensor(tensor_name) and known_variable.shape == tensor_shapes[tensor_name] and not 'nondet' in tensor_name:
+                if checkpoint_reader.has_tensor(tensor_name) and known_variable.shape == tensor_shapes[tensor_name]:
                     print("Variable restored: %s Shape: %s" % (known_variable.name, known_variable.shape))
                     variables_to_restore[tensor_name] = known_variable
                 else:
