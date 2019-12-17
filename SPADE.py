@@ -748,9 +748,9 @@ class SPADE(object):
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
         
-        fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, 0*fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
+        fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
         fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_full_det_x_z)],-1) 
-        fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, 0*fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
+        fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
         #fake_nondet_x_output = self.generator_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=False, scope="generator_nondet")
         fake_nondet_x_output = self.generator_features(fake_full_nondet_x_code, map(tf.stop_gradient, fake_det_x_features), z=fake_full_nondet_x_z, reuse=False, scope="generator_nondet")
 
@@ -760,7 +760,7 @@ class SPADE(object):
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
         random_fake_det_x_mean, random_fake_det_x_var = random_fake_det_x_stats[0]
 
-        random_full_nondet_x_code = tf.concat([random_nondet_code, 0*fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
+        random_full_nondet_x_code = tf.concat([random_nondet_code, fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
         random_full_nondet_x_z = tf.concat([random_nondet_code, random_full_det_x_z], -1) 
         #random_fake_nondet_x_output = self.generator_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_fake_nondet_x_output = self.generator_features(random_full_nondet_x_code, random_fake_det_x_features, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
@@ -771,7 +771,7 @@ class SPADE(object):
         random_gen_fake_det_x_scaffold = random_gen_fake_det_x_features#tf.concat([random_gen_fake_det_x_stats[0][0], random_gen_fake_det_x_stats[1]], -1)
         random_gen_fake_det_x_mean, random_gen_fake_det_x_var = random_gen_fake_det_x_stats[0]
 
-        random_gen_full_nondet_x_code = tf.concat([random_gen_nondet_code, 0*fake_nondet_x_full_ctxcode, random_gen_full_det_x_code], -1) 
+        random_gen_full_nondet_x_code = tf.concat([random_gen_nondet_code, fake_nondet_x_full_ctxcode, random_gen_full_det_x_code], -1) 
         random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_full_det_x_z], -1) 
         #random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_gen_fake_nondet_x_output = self.generator_features(random_gen_full_nondet_x_code, random_gen_fake_det_x_features, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
@@ -782,7 +782,7 @@ class SPADE(object):
         resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
         resample_fake_det_x_mean, resample_fake_det_x_var = resample_fake_det_x_stats[0]
 
-        resample_full_nondet_x_code = tf.concat([resample_nondet_code, 0*fake_nondet_x_full_ctxcode, resample_full_det_x_code], -1)
+        resample_full_nondet_x_code = tf.concat([resample_nondet_code, fake_nondet_x_full_ctxcode, resample_full_det_x_code], -1)
         resample_full_nondet_x_z = tf.concat([resample_nondet_code, resample_full_det_x_z], -1)
         #resample_fake_nondet_x_output = self.generator_spatial(resample_full_nondet_x_code, resample_fake_det_x_scaffold, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet")
         resample_fake_nondet_x_output = self.generator_features(resample_full_nondet_x_code, resample_fake_det_x_features, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet")
