@@ -688,7 +688,7 @@ class SPADE(object):
         fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, tf.stop_gradient(fake_nondet_x_codectx)],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
-        resample_nondet_supercode = z_sample(*self.prior_code(batch_size))
+        resample_nondet_supercode = fake_nondet_x_supercode#z_sample(*self.prior_code(batch_size))
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_dist(fake_nondet_x_full_ctxcode, channel_multiplier=4, scope='prior_nondet_supercode')
