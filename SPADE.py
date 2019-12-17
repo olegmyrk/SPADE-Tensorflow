@@ -748,9 +748,9 @@ class SPADE(object):
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
         
-        fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
+        fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, 0*fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
         fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_full_det_x_z)],-1) 
-        fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
+        fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, 0*fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
         #fake_nondet_x_output = self.generator_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=False, scope="generator_nondet")
         fake_nondet_x_output = self.generator_features(fake_full_nondet_x_code, map(tf.stop_gradient, fake_det_x_features), z=fake_full_nondet_x_z, reuse=False, scope="generator_nondet")
 
@@ -760,7 +760,7 @@ class SPADE(object):
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
         random_fake_det_x_mean, random_fake_det_x_var = random_fake_det_x_stats[0]
 
-        random_full_nondet_x_code = tf.concat([random_nondet_code, fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
+        random_full_nondet_x_code = tf.concat([random_nondet_code, 0*fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
         random_full_nondet_x_z = tf.concat([random_nondet_code, random_full_det_x_z], -1) 
         #random_fake_nondet_x_output = self.generator_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_fake_nondet_x_output = self.generator_features(random_full_nondet_x_code, random_fake_det_x_features, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet")
@@ -771,7 +771,7 @@ class SPADE(object):
         random_gen_fake_det_x_scaffold = random_gen_fake_det_x_features#tf.concat([random_gen_fake_det_x_stats[0][0], random_gen_fake_det_x_stats[1]], -1)
         random_gen_fake_det_x_mean, random_gen_fake_det_x_var = random_gen_fake_det_x_stats[0]
 
-        random_gen_full_nondet_x_code = tf.concat([random_gen_nondet_code, fake_nondet_x_full_ctxcode, random_gen_full_det_x_code], -1) 
+        random_gen_full_nondet_x_code = tf.concat([random_gen_nondet_code, 0*fake_nondet_x_full_ctxcode, random_gen_full_det_x_code], -1) 
         random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_full_det_x_z], -1) 
         #random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_gen_fake_nondet_x_output = self.generator_features(random_gen_full_nondet_x_code, random_gen_fake_det_x_features, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
@@ -782,7 +782,7 @@ class SPADE(object):
         random_simple_fake_det_x_scaffold = random_simple_fake_det_x_features#tf.concat([random_simple_fake_det_x_stats[0][0], random_simple_fake_det_x_stats[1]], -1)
         random_simple_fake_det_x_mean, random_simple_fake_det_x_var = random_simple_fake_det_x_stats[0]
 
-        random_simple_full_nondet_x_code = tf.concat([random_simple_nondet_code, fake_nondet_x_full_ctxcode, random_simple_full_det_x_code], -1)
+        random_simple_full_nondet_x_code = tf.concat([random_simple_nondet_code, 0*fake_nondet_x_full_ctxcode, random_simple_full_det_x_code], -1)
         random_simple_full_nondet_x_z = tf.concat([random_simple_nondet_code, random_simple_full_det_x_z], -1)
         #random_simple_fake_nondet_x_output = self.generator_spatial(random_simple_full_nondet_x_code, random_simple_fake_det_x_scaffold, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_simple_fake_nondet_x_output = self.generator_features(random_simple_full_nondet_x_code, random_simple_fake_det_x_features, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet")
@@ -794,11 +794,11 @@ class SPADE(object):
         [code_nondet_gen_real_logit, code_nondet_gen_real_summary], [code_nondet_gen_fake_logit, code_nondet_gen_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
 
         discriminator_fun = self.full_discriminator
-        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
-        [nondet_fake_logit, fake_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
+        [nondet_fake_logit, fake_nondet_summary] = discriminator_fun(tf.concat([0*self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
-            GP = self.gradient_penalty(real=tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
+            GP = self.gradient_penalty(real=tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
         else:
             GP = 0
 
