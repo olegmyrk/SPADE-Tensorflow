@@ -656,7 +656,7 @@ class SPADE(object):
         fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, tf.stop_gradient(fake_det_x_codectx)],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, scope="generator_det_code")
         
-        random_simple_det_supercode = z_sample(*self.prior_code(batch_size))
+        resample_det_supercode = fake_det_x_supercode#z_sample(*self.prior_code(batch_size))
         prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_det_supercode')
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         prior_det_supercode_dist = self.prior_code_dist(fake_det_x_full_ctxcode, channel_multiplier=4, scope='prior_det_supercode')
@@ -665,8 +665,8 @@ class SPADE(object):
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code(batch_size)
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
 
-        random_simple_det_code_mean, random_simple_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_simple_det_supercode, reuse=True, scope="generator_det_code")
-        random_simple_det_code = z_sample(random_simple_det_code_mean, random_simple_det_code_var)
+        resample_det_code_mean, resample_det_code_var = self.generator_code(fake_det_x_full_ctxcode, resample_det_supercode, reuse=True, scope="generator_det_code")
+        resample_det_code = z_sample(resample_det_code_mean, resample_det_code_var)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
         random_det_code = z_sample(random_det_code_mean, random_det_code_var)
         random_gen_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
@@ -688,7 +688,7 @@ class SPADE(object):
         fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, tf.stop_gradient(fake_nondet_x_codectx)],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
-        random_simple_nondet_supercode = z_sample(*self.prior_code(batch_size))
+        resample_nondet_supercode = z_sample(*self.prior_code(batch_size))
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_dist(fake_nondet_x_full_ctxcode, channel_multiplier=4, scope='prior_nondet_supercode')
@@ -697,8 +697,8 @@ class SPADE(object):
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code(batch_size)
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         
-        random_simple_nondet_code_mean, random_simple_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_simple_nondet_supercode, reuse=True, scope="generator_nondet_code")
-        random_simple_nondet_code = z_sample(random_simple_nondet_code_mean, random_simple_nondet_code_var)
+        resample_nondet_code_mean, resample_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, resample_nondet_supercode, reuse=True, scope="generator_nondet_code")
+        resample_nondet_code = z_sample(resample_nondet_code_mean, resample_nondet_code_var)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
         random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
         random_gen_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
@@ -740,16 +740,16 @@ class SPADE(object):
         #random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
         random_gen_fake_nondet_x_output = self.generator_features(random_gen_full_nondet_x_code, random_gen_fake_det_x_features, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
-        random_simple_full_det_x_code = tf.concat([random_simple_det_code, fake_det_x_full_ctxcode], -1)
-        random_simple_full_det_x_z = tf.concat([random_simple_det_code], -1)
-        random_simple_fake_det_x_features, random_simple_fake_det_x_stats = self.generator(random_simple_full_det_x_code, z=random_simple_full_det_x_z, reuse=True, scope="generator_det_x")
-        random_simple_fake_det_x_scaffold = random_simple_fake_det_x_features#tf.concat([random_simple_fake_det_x_stats[0][0], random_simple_fake_det_x_stats[1]], -1)
-        random_simple_fake_det_x_mean, random_simple_fake_det_x_var = random_simple_fake_det_x_stats[0]
+        resample_full_det_x_code = tf.concat([resample_det_code, fake_det_x_full_ctxcode], -1)
+        resample_full_det_x_z = tf.concat([resample_det_code], -1)
+        resample_fake_det_x_features, resample_fake_det_x_stats = self.generator(resample_full_det_x_code, z=resample_full_det_x_z, reuse=True, scope="generator_det_x")
+        resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
+        resample_fake_det_x_mean, resample_fake_det_x_var = resample_fake_det_x_stats[0]
 
-        random_simple_full_nondet_x_code = tf.concat([random_simple_nondet_code, 0*fake_nondet_x_full_ctxcode, random_simple_full_det_x_code], -1)
-        random_simple_full_nondet_x_z = tf.concat([random_simple_nondet_code, random_simple_full_det_x_z], -1)
-        #random_simple_fake_nondet_x_output = self.generator_spatial(random_simple_full_nondet_x_code, random_simple_fake_det_x_scaffold, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
-        random_simple_fake_nondet_x_output = self.generator_features(random_simple_full_nondet_x_code, random_simple_fake_det_x_features, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
+        resample_full_nondet_x_code = tf.concat([resample_nondet_code, 0*fake_nondet_x_full_ctxcode, resample_full_det_x_code], -1)
+        resample_full_nondet_x_z = tf.concat([resample_nondet_code, resample_full_det_x_z], -1)
+        #resample_fake_nondet_x_output = self.generator_spatial(resample_full_nondet_x_code, resample_fake_det_x_scaffold, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
+        resample_fake_nondet_x_output = self.generator_features(resample_full_nondet_x_code, resample_fake_det_x_features, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
         code_det_prior_real_logit, code_det_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_gaussian_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
         code_nondet_prior_real_logit, code_nondet_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_gaussian_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
@@ -859,9 +859,9 @@ class SPADE(object):
         fake_det_x_var = tf.exp(fake_det_x_stats[0][1])
         fake_det_x_segmap = tfd.Categorical(logits=fake_det_x_stats[1]).sample()
         fake_nondet_x = fake_nondet_x_output
-        random_simple_fake_det_x = random_simple_fake_det_x_stats[0][0]
-        random_simple_fake_det_x_segmap = tfd.Categorical(logits=random_simple_fake_det_x_stats[1]).sample()
-        random_simple_fake_nondet_x = random_simple_fake_nondet_x_output
+        resample_fake_det_x = resample_fake_det_x_stats[0][0]
+        resample_fake_det_x_segmap = tfd.Categorical(logits=resample_fake_det_x_stats[1]).sample()
+        resample_fake_nondet_x = resample_fake_nondet_x_output
         random_fake_det_x = random_fake_det_x_stats[0][0]
         random_fake_det_x_segmap = tfd.Categorical(logits=random_fake_det_x_stats[1]).sample()
         random_fake_nondet_x = random_fake_nondet_x_output
@@ -966,17 +966,17 @@ class SPADE(object):
        
         outputs_det = (fake_det_x, fake_det_x_var, fake_det_x_segmap)
 
-        outputs_random_simple_det = (random_simple_fake_det_x, random_simple_fake_det_x_segmap)
+        outputs_resample_det = (resample_fake_det_x, resample_fake_det_x_segmap)
         outputs_random_det = (random_fake_det_x, random_fake_det_x_segmap)
-        outputs_random_gen_det = (random_simple_fake_det_x, random_gen_fake_det_x_segmap)
+        outputs_random_gen_det = (resample_fake_det_x, random_gen_fake_det_x_segmap)
 
         outputs_nondet = (fake_nondet_x,)
 
-        outputs_random_simple_nondet = (random_simple_fake_nondet_x,)
+        outputs_resample_nondet = (resample_fake_nondet_x,)
         outputs_random_nondet = (random_fake_nondet_x,)
         outputs_random_gen_nondet = (random_gen_fake_nondet_x,)
 
-        return inputs, (losses_det, outputs_det, summaries_det), (outputs_random_simple_det, outputs_random_det, outputs_random_gen_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_random_simple_nondet, outputs_random_nondet, outputs_random_gen_nondet) 
+        return inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det, outputs_random_gen_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_resample_nondet, outputs_random_nondet, outputs_random_gen_nondet) 
 
     def build_fake_inputs(self, batch_size):
         real_ctx = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, self.img_height, self.img_width, self.img_ch)))
@@ -1180,7 +1180,7 @@ class SPADE(object):
                 def train_det_grad(global_step, train_main, discriminate, *inputs):
                     def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
-                            inputs, (losses_det, outputs_det, summaries_det), (outputs_random_simple_det, outputs_random_det, outputs_random_gen_det), _, _ = self.execute_model(global_step, *inputs)
+                            inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det, outputs_random_gen_det), _, _ = self.execute_model(global_step, *inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
                         if discriminate != False:
                             if train_main:
@@ -1191,9 +1191,9 @@ class SPADE(object):
                                 self.G_det_optim.apply_gradients(zip(tape.gradient(losses_det.g_det_loss, self.G_det_vars), self.G_det_vars))
                             summaries_det()
                             global_step.assign_add(1)
-                        return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_random_simple_det, outputs_random_det, outputs_random_gen_det
+                        return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, outputs_random_gen_det
 
-                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
+                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
 
                     converted_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
 
@@ -1205,11 +1205,11 @@ class SPADE(object):
                         return list(map(lambda result_output: tf.concat(distribute_strategy.experimental_local_results(result_output), axis=0), result_outputs))
 
                     converted_outputs_det = convert_outputs(result_outputs_det)
-                    converted_outputs_random_simple_det = convert_outputs(result_outputs_random_simple_det)
+                    converted_outputs_resample_det = convert_outputs(result_outputs_resample_det)
                     converted_outputs_random_det = convert_outputs(result_outputs_random_det)
                     converted_outputs_random_gen_det = convert_outputs(result_outputs_random_gen_det)
 
-                    return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_random_simple_det, converted_outputs_random_det, converted_outputs_random_gen_det 
+                    return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det, converted_outputs_random_gen_det 
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
                 def train_det_grad_both(global_step, train_main, *inputs):
@@ -1226,7 +1226,7 @@ class SPADE(object):
                 def train_nondet_grad(global_step, train_main, discriminate, *inputs):
                     def train_fn(global_step, *inputs):
                         with tf.GradientTape(persistent=True) as tape:
-                            inputs, (losses_det, outputs_det, summaries_det), (outputs_random_simple_det, outputs_random_det, outputs_random_gen_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_random_simple_nondet, outputs_random_nondet, outputs_random_gen_nondet) = self.execute_model(global_step, *inputs)
+                            inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det, outputs_random_gen_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_resample_nondet, outputs_random_nondet, outputs_random_gen_nondet) = self.execute_model(global_step, *inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
                         result_losses_nondet = (losses_nondet.g_nondet_loss, losses_nondet.gp_nondet_loss, losses_nondet.de_nondet_loss, losses_nondet.d_nondet_loss)
                         if discriminate != False:
@@ -1240,9 +1240,9 @@ class SPADE(object):
                             summaries_det()
                             summaries_nondet()
                             global_step.assign_add(1)
-                        return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_random_simple_det, outputs_random_det, outputs_random_gen_det, result_losses_nondet, outputs_nondet, outputs_random_simple_nondet, outputs_random_nondet, outputs_random_gen_nondet
+                        return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, outputs_random_gen_det, result_losses_nondet, outputs_nondet, outputs_resample_nondet, outputs_random_nondet, outputs_random_gen_nondet
 
-                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_random_simple_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
+                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
                    
                     converted_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
 
@@ -1255,16 +1255,16 @@ class SPADE(object):
                         return list(map(lambda result_output: tf.concat(distribute_strategy.experimental_local_results(result_output), axis=0), result_outputs))
 
                     converted_outputs_det = convert_outputs(result_outputs_det)
-                    converted_outputs_random_simple_det = convert_outputs(result_outputs_random_simple_det)
+                    converted_outputs_resample_det = convert_outputs(result_outputs_resample_det)
                     converted_outputs_random_det = convert_outputs(result_outputs_random_det)
                     converted_outputs_random_gen_det = convert_outputs(result_outputs_random_gen_det)
 
                     converted_outputs_nondet = convert_outputs(result_outputs_nondet)
-                    converted_outputs_random_simple_nondet = convert_outputs(result_outputs_random_simple_nondet)
+                    converted_outputs_resample_nondet = convert_outputs(result_outputs_resample_nondet)
                     converted_outputs_random_nondet = convert_outputs(result_outputs_random_nondet)
                     converted_outputs_random_gen_nondet = convert_outputs(result_outputs_random_gen_nondet)
 
-                    return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_random_simple_det, converted_outputs_random_det, converted_outputs_random_gen_det, converted_losses_nondet, converted_outputs_nondet, converted_outputs_random_simple_nondet, converted_outputs_random_nondet, converted_outputs_random_gen_nondet
+                    return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det, converted_outputs_random_gen_det, converted_losses_nondet, converted_outputs_nondet, converted_outputs_resample_nondet, converted_outputs_random_nondet, converted_outputs_random_gen_nondet
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
                 def train_nondet_grad_both(global_step, train_main, *inputs):
@@ -1289,17 +1289,17 @@ class SPADE(object):
                             #    print("L2DET:D", time.time())
                             #    train_det_grad_discriminate(global_step, self.train_main, *inputs)
                             #print("L2DET:G", time.time())
-                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_generate(global_step, self.train_main, *inputs)
+                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_generate(global_step, self.train_main, *inputs)
                             print("L2DET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_both(global_step, self.train_main, *inputs)
+                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_both(global_step, self.train_main, *inputs)
                         else:
                             #if self.train_main:
                             #    print("L2NONDET:D", time.time())
                             #    train_nondet_grad_discriminate(global_step, self.train_main, *inputs)
                             #print("L2NONDET:G", time.time())
-                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_random_simple_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_generate(global_step, self.train_main, *inputs)
+                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_generate(global_step, self.train_main, *inputs)
                             print("L2NONDET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_random_simple_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_random_simple_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_both(global_step, self.train_main, *inputs)
+                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_both(global_step, self.train_main, *inputs)
 
                         print("L4",  time.time())
                         epoch = (counter-1) // self.iteration 
@@ -1317,12 +1317,12 @@ class SPADE(object):
                             print("L6",  time.time())
                             report_tensors(self.report_inputs, result_inputs)
                             report_tensors(self.report_outputs_det, result_outputs_det)
-                            report_tensors(self.report_outputs_random_det, result_outputs_random_simple_det, prefix="random_simple")
+                            report_tensors(self.report_outputs_random_det, result_outputs_resample_det, prefix="resample")
                             report_tensors(self.report_outputs_random_det, result_outputs_random_det, prefix="random")
                             report_tensors(self.report_outputs_random_det, result_outputs_random_gen_det, prefix="random_gen")
                             if self.train_nondet:
                                 report_tensors(self.report_outputs_nondet, result_outputs_nondet)
-                                report_tensors(self.report_outputs_random_nondet, result_outputs_random_simple_nondet, prefix="random_simple")
+                                report_tensors(self.report_outputs_random_nondet, result_outputs_resample_nondet, prefix="resample")
                                 report_tensors(self.report_outputs_random_nondet, result_outputs_random_nondet, prefix="random")
                                 report_tensors(self.report_outputs_random_nondet, result_outputs_random_gen_nondet, prefix="random_gen")
 
