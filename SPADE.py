@@ -692,7 +692,7 @@ class SPADE(object):
         fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, tf.stop_gradient(fake_det_x_codectx)],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, scope="generator_det_code")
         
-        random_simple_det_supercode = z_sample(*self.prior_code(batch_size))
+        resample_det_supercode = fake_det_x_supercode#z_sample(*self.prior_code(batch_size))
         prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(self.real_x, scope='prior_det_supercode')
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         prior_det_supercode_dist = self.prior_code_dist(fake_det_x_full_ctxcode, channel_multiplier=4, scope='prior_det_supercode')
@@ -701,8 +701,8 @@ class SPADE(object):
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code(batch_size)
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
 
-        random_simple_det_code_mean, random_simple_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_simple_det_supercode, reuse=True, scope="generator_det_code")
-        random_simple_det_code = z_sample(random_simple_det_code_mean, random_simple_det_code_var)
+        resample_det_code_mean, resample_det_code_var = self.generator_code(fake_det_x_full_ctxcode, resample_det_supercode, reuse=True, scope="generator_det_code")
+        resample_det_code = z_sample(resample_det_code_mean, resample_det_code_var)
         random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_supercode, reuse=True, scope="generator_det_code")
         random_det_code = z_sample(random_det_code_mean, random_det_code_var)
         random_gen_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
@@ -724,7 +724,7 @@ class SPADE(object):
         fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, tf.stop_gradient(fake_nondet_x_codectx)],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
-        random_simple_nondet_supercode = z_sample(*self.prior_code(batch_size))
+        resample_nondet_supercode = z_sample(*self.prior_code(batch_size))
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(self.real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_dist(fake_nondet_x_full_ctxcode, channel_multiplier=4, scope='prior_nondet_supercode')
@@ -733,8 +733,8 @@ class SPADE(object):
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code(batch_size)
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         
-        random_simple_nondet_code_mean, random_simple_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_simple_nondet_supercode, reuse=True, scope="generator_nondet_code")
-        random_simple_nondet_code = z_sample(random_simple_nondet_code_mean, random_simple_nondet_code_var)
+        resample_nondet_code_mean, resample_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, resample_nondet_supercode, reuse=True, scope="generator_nondet_code")
+        resample_nondet_code = z_sample(resample_nondet_code_mean, resample_nondet_code_var)
         random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_supercode, reuse=True, scope="generator_nondet_code")
         random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
         random_gen_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
@@ -776,16 +776,16 @@ class SPADE(object):
         #random_gen_fake_nondet_x_output = self.generator_spatial(random_gen_full_nondet_x_code, random_gen_fake_det_x_scaffold, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
         random_gen_fake_nondet_x_output = self.generator_features(random_gen_full_nondet_x_code, random_gen_fake_det_x_features, z=random_gen_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
-        random_simple_full_det_x_code = tf.concat([random_simple_det_code, fake_det_x_full_ctxcode], -1)
-        random_simple_full_det_x_z = tf.concat([random_simple_det_code], -1)
-        random_simple_fake_det_x_features, random_simple_fake_det_x_stats = self.generator(random_simple_full_det_x_code, z=random_simple_full_det_x_z, reuse=True, scope="generator_det")
-        random_simple_fake_det_x_scaffold = random_simple_fake_det_x_features#tf.concat([random_simple_fake_det_x_stats[0][0], random_simple_fake_det_x_stats[1]], -1)
-        random_simple_fake_det_x_mean, random_simple_fake_det_x_var = random_simple_fake_det_x_stats[0]
+        resample_full_det_x_code = tf.concat([resample_det_code, fake_det_x_full_ctxcode], -1)
+        resample_full_det_x_z = tf.concat([resample_det_code], -1)
+        resample_fake_det_x_features, resample_fake_det_x_stats = self.generator(resample_full_det_x_code, z=resample_full_det_x_z, reuse=True, scope="generator_det")
+        resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
+        resample_fake_det_x_mean, resample_fake_det_x_var = resample_fake_det_x_stats[0]
 
-        random_simple_full_nondet_x_code = tf.concat([random_simple_nondet_code, 0*fake_nondet_x_full_ctxcode, random_simple_full_det_x_code], -1)
-        random_simple_full_nondet_x_z = tf.concat([random_simple_nondet_code, random_simple_full_det_x_z], -1)
-        #random_simple_fake_nondet_x_output = self.generator_spatial(random_simple_full_nondet_x_code, random_simple_fake_det_x_scaffold, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet")
-        random_simple_fake_nondet_x_output = self.generator_features(random_simple_full_nondet_x_code, random_simple_fake_det_x_features, z=random_simple_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        resample_full_nondet_x_code = tf.concat([resample_nondet_code, 0*fake_nondet_x_full_ctxcode, resample_full_det_x_code], -1)
+        resample_full_nondet_x_z = tf.concat([resample_nondet_code, resample_full_det_x_z], -1)
+        #resample_fake_nondet_x_output = self.generator_spatial(resample_full_nondet_x_code, resample_fake_det_x_scaffold, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet")
+        resample_fake_nondet_x_output = self.generator_features(resample_full_nondet_x_code, resample_fake_det_x_features, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
         [code_det_prior_real_logit, code_det_prior_real_summary], [code_det_prior_fake_logit, code_det_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_gaussian_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
         [code_nondet_prior_real_logit, code_nondet_prior_real_summary], [code_nondet_prior_fake_logit, code_nondet_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_gaussian_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
@@ -912,9 +912,9 @@ class SPADE(object):
         self.random_gen_fake_det_x = random_gen_fake_det_x_stats[0][0]
         self.random_gen_fake_det_x_segmap = tfd.Categorical(logits=random_gen_fake_det_x_stats[1]).sample()
         self.random_gen_fake_nondet_x = random_gen_fake_nondet_x_output
-        self.random_simple_fake_det_x = random_simple_fake_det_x_stats[0][0]
-        self.random_simple_fake_det_x_segmap = tfd.Categorical(logits=random_simple_fake_det_x_stats[1]).sample()
-        self.random_simple_fake_nondet_x = random_simple_fake_nondet_x_output
+        self.resample_fake_det_x = resample_fake_det_x_stats[0][0]
+        self.resample_fake_det_x_segmap = tfd.Categorical(logits=resample_fake_det_x_stats[1]).sample()
+        self.resample_fake_nondet_x = resample_fake_nondet_x_output
 
         """ Test """
         self.test_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, len(img_class.color_value_dict)])
@@ -1160,8 +1160,8 @@ class SPADE(object):
 
                 if np.mod(idx + 1, self.print_freq) == 0:
                     print("OUTPUT", epoch, idx, time.time())
-                    real_ctx_images, real_x_images, real_x_segmap, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, random_simple_fake_det_x, random_simple_fake_det_x_segmap, random_simple_fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x = self.sess.run(
-                        [self.real_ctx, self.real_x, self.real_x_segmap, self.fake_det_x, self.fake_det_x_var, self.fake_det_x_segmap, self.fake_nondet_x, self.random_simple_fake_det_x, self.random_simple_fake_det_x_segmap, self.random_simple_fake_nondet_x, self.random_fake_det_x, self.random_fake_det_x_segmap, self.random_fake_nondet_x, self.random_gen_fake_det_x, self.random_gen_fake_det_x_segmap, self.random_gen_fake_nondet_x], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
+                    real_ctx_images, real_x_images, real_x_segmap, fake_det_x, fake_det_x_var, fake_det_x_segmap, fake_nondet_x, resample_fake_det_x, resample_fake_det_x_segmap, resample_fake_nondet_x, random_fake_det_x, random_fake_det_x_segmap, random_fake_nondet_x, random_gen_fake_det_x, random_gen_fake_det_x_segmap, random_gen_fake_nondet_x = self.sess.run(
+                        [self.real_ctx, self.real_x, self.real_x_segmap, self.fake_det_x, self.fake_det_x_var, self.fake_det_x_segmap, self.fake_nondet_x, self.resample_fake_det_x, self.resample_fake_det_x_segmap, self.resample_fake_nondet_x, self.random_fake_det_x, self.random_fake_det_x_segmap, self.random_fake_nondet_x, self.random_gen_fake_det_x, self.random_gen_fake_det_x_segmap, self.random_gen_fake_nondet_x], feed_dict=train_feed_dict, options=tf.RunOptions(report_tensor_allocations_upon_oom=True))
 
                     save_images(real_ctx_images, [self.batch_size, 1],
                                './{}/real_ctximage_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
@@ -1180,12 +1180,12 @@ class SPADE(object):
                     save_images(fake_nondet_x, [self.batch_size, 1],
                                 './{}/fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
 
-                    save_images(random_simple_fake_det_x, [self.batch_size, 1],
-                                './{}/random_simple_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
-                    save_segmaps(random_simple_fake_det_x_segmap, self.color_value_dict, [self.batch_size, 1],
-                                 './{}/random_simple_fake_det_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
-                    save_images(random_simple_fake_nondet_x, [self.batch_size, 1],
-                                './{}/random_simple_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                    save_images(resample_fake_det_x, [self.batch_size, 1],
+                                './{}/resample_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                    save_segmaps(resample_fake_det_x_segmap, self.color_value_dict, [self.batch_size, 1],
+                                 './{}/resample_fake_det_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
+                    save_images(resample_fake_nondet_x, [self.batch_size, 1],
+                                './{}/resample_fake_nondet_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
 
                     save_images(random_fake_det_x, [self.batch_size, 1],
                                 './{}/random_fake_det_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
