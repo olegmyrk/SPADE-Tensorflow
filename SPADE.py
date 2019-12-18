@@ -747,6 +747,7 @@ class SPADE(object):
         fake_det_x_features, fake_det_x_stats = self.generator(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det")
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
+        fake_det_x_segmap_logits = fake_det_x_stats[1]
         
         fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
         fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_full_det_x_z)],-1) 
@@ -759,6 +760,7 @@ class SPADE(object):
         random_fake_det_x_features, random_fake_det_x_stats = self.generator(random_full_det_x_code, z=random_full_det_x_z, reuse=True, scope="generator_det")
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
         random_fake_det_x_mean, random_fake_det_x_var = random_fake_det_x_stats[0]
+        random_fake_det_x_segmap_logits = random_fake_det_x_stats[1]
 
         random_full_nondet_x_code = tf.concat([random_nondet_code, fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
         random_full_nondet_x_z = tf.concat([random_nondet_code, random_full_det_x_z], -1) 
@@ -770,6 +772,7 @@ class SPADE(object):
         random_gen_fake_det_x_features, random_gen_fake_det_x_stats = self.generator(random_gen_full_det_x_code, z=random_gen_full_det_x_z, reuse=True, scope="generator_det")
         random_gen_fake_det_x_scaffold = random_gen_fake_det_x_features#tf.concat([random_gen_fake_det_x_stats[0][0], random_gen_fake_det_x_stats[1]], -1)
         random_gen_fake_det_x_mean, random_gen_fake_det_x_var = random_gen_fake_det_x_stats[0]
+        random_gen_fake_det_x_segmap_logits = random_gen_fake_det_x_stats[1]
 
         random_gen_full_nondet_x_code = tf.concat([random_gen_nondet_code, fake_nondet_x_full_ctxcode, random_gen_full_det_x_code], -1) 
         random_gen_full_nondet_x_z = tf.concat([random_gen_nondet_code, random_gen_full_det_x_z], -1) 
@@ -781,6 +784,7 @@ class SPADE(object):
         resample_fake_det_x_features, resample_fake_det_x_stats = self.generator(resample_full_det_x_code, z=resample_full_det_x_z, reuse=True, scope="generator_det")
         resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
         resample_fake_det_x_mean, resample_fake_det_x_var = resample_fake_det_x_stats[0]
+        resample_fake_det_x_segmap_logits = resample_fake_det_x_stats[1]
 
         resample_full_nondet_x_code = tf.concat([resample_nondet_code, fake_nondet_x_full_ctxcode, resample_full_det_x_code], -1)
         resample_full_nondet_x_z = tf.concat([resample_nondet_code, resample_full_det_x_z], -1)
@@ -794,8 +798,8 @@ class SPADE(object):
         [code_nondet_gen_real_logit, code_nondet_gen_real_summary], [code_nondet_gen_fake_logit, code_nondet_gen_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
 
         discriminator_fun = self.full_discriminator
-        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
-        [nondet_fake_logit, fake_nondet_summary] = discriminator_fun(tf.concat([0*self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([tf.stop_gradient(tf.nn.softmax(fake_det_x_segmap_logits)), self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
+        [nondet_fake_logit, fake_nondet_summary] = discriminator_fun(tf.concat([tf.stop_gradient(tf.nn.softmax(fake_det_x_segmap_logits)), fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
             GP = self.gradient_penalty(real=tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
@@ -904,16 +908,16 @@ class SPADE(object):
         """ Result Image """
         self.fake_det_x = fake_det_x_stats[0][0]
         self.fake_det_x_var = tf.exp(fake_det_x_stats[0][1])
-        self.fake_det_x_segmap = tfd.Categorical(logits=fake_det_x_stats[1]).sample()
+        self.fake_det_x_segmap = tfd.Categorical(logits=fake_det_x_segmap_logits).sample()
         self.fake_nondet_x = fake_nondet_x_output
         self.random_fake_det_x = random_fake_det_x_stats[0][0]
-        self.random_fake_det_x_segmap = tfd.Categorical(logits=random_fake_det_x_stats[1]).sample()
+        self.random_fake_det_x_segmap = tfd.Categorical(logits=random_fake_det_x_segmap_logits).sample()
         self.random_fake_nondet_x = random_fake_nondet_x_output
         self.random_gen_fake_det_x = random_gen_fake_det_x_stats[0][0]
-        self.random_gen_fake_det_x_segmap = tfd.Categorical(logits=random_gen_fake_det_x_stats[1]).sample()
+        self.random_gen_fake_det_x_segmap = tfd.Categorical(logits=random_gen_fake_det_x_segmap_logits).sample()
         self.random_gen_fake_nondet_x = random_gen_fake_nondet_x_output
         self.resample_fake_det_x = resample_fake_det_x_stats[0][0]
-        self.resample_fake_det_x_segmap = tfd.Categorical(logits=resample_fake_det_x_stats[1]).sample()
+        self.resample_fake_det_x_segmap = tfd.Categorical(logits=resample_fake_det_x_segmap_logits).sample()
         self.resample_fake_nondet_x = resample_fake_nondet_x_output
 
         """ Test """
