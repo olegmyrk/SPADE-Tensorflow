@@ -504,28 +504,6 @@ def cprogressive(context, segmap, x_init, channels, use_bias=True, sn=False, reu
 
         return x
 
-def param_free_norm(x, epsilon=1e-5) :
-    x_mean, x_var = tf.nn.moments(x=x, axes=[1, 2], keepdims=True)
-    x_std = tf.sqrt(x_var + epsilon)
-
-    return (x - x_mean) / x_std
-
-def param_free_batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
-    with tf.compat.v1.variable_scope(scope, reuse=reuse):
-        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
-        shape = mean.get_shape().as_list()
-        result = tf.nn.batch_normalization(x, mean, var, tf.zeros_like(mean), tf.ones_like(var), epsilon)
-    return result
-
-def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
-    with tf.compat.v1.variable_scope(scope, reuse=reuse):
-        mean, var = tf.nn.moments(x=x, axes=list(range(len(x.get_shape())-1)), keepdims=True)
-        shape = mean.get_shape().as_list()
-        offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))
-        scale = get_trainable_variable("scale", initializer=np.ones(shape, dtype='float32'))
-        result = tf.nn.batch_normalization(x, mean, var, offset, scale, epsilon)
-    return result
-
 ##################################################################################
 # Sampling
 ##################################################################################
@@ -570,11 +548,36 @@ def softmax(x):
 # Normalization function
 ##################################################################################
 
-def instance_norm(x, scope='instance_norm'):
-    return tf_addons.layers.instance_norm(x,
-                                           epsilon=1e-05,
-                                           center=True, scale=True,
-                                           scope=scope)
+def param_free_norm(x, epsilon=1e-5) :
+    x_mean, x_var = tf.nn.moments(x=x, axes=[1, 2], keepdims=True)
+    x_std = tf.sqrt(x_var + epsilon)
+
+    return (x - x_mean) / x_std
+
+def param_free_batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
+        shape = mean.get_shape().as_list()
+        result = tf.nn.batch_normalization(x, mean, var, tf.zeros_like(mean), tf.ones_like(var), epsilon)
+    return result
+
+def instance_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        mean, var = tf.nn.moments(x=x, axes=[1, 2], keepdims=True)
+        shape = mean.get_shape().as_list()
+        offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))
+        scale = get_trainable_variable("scale", initializer=np.ones(shape, dtype='float32'))
+        result = (x - mean)/std * scale + offset
+    return result
+
+def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        mean, var = tf.nn.moments(x=x, axes=list(range(len(x.get_shape())-1)), keepdims=True)
+        shape = mean.get_shape().as_list()
+        offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))
+        scale = get_trainable_variable("scale", initializer=np.ones(shape, dtype='float32'))
+        result = (x - mean)/std * scale + offset
+    return result
 
 def spectral_norm(w, iteration=1):
     w_shape = w.shape.as_list()
