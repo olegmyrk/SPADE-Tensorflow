@@ -471,9 +471,7 @@ class SPADE(object):
 
             z = fully_connected(x, 1, sn=self.sn, scope='linear_z')
 
-            z_summary = [tf.summary.scalar(label + ".logit", tf.reduce_sum(z))]
-
-            return [[z]], z_summary
+            return [[z]]
 
     def full_discriminator(self, x_init, code=None, reuse=False, scope=None, label=None):
         channel = self.ch
@@ -532,25 +530,15 @@ class SPADE(object):
             #z0 = -tf.reduce_mean(tf.math.square(x0-fixed_code), 1, keep_dims=True)
             #z0 = -tf.reduce_mean(tf.math.abs(x0-fixed_code), 1, keep_dims=True)
             
-            z0_summary = tf.summary.scalar(label + ".logit0", tf.reduce_mean(z0))
             z = z0
-            D_summary = [z0_summary]
-
-            #if code is not None:
-            #   x1 = fully_connected(x, channel, use_bias=True, sn=self.sn, scope='linear_x1')
-            #   x1 = lrelu(x1, 0.2)
-            #   z1 = -tf.reduce_sum(tf.math.abs(x1-code), 1, keep_dims=True)
-            #   z1_summary = tf.summary.scalar(label + ".logit1", tf.reduce_mean(z1))
-            #   D_summary = D_summary + [z1_summary]
 
             z = tf.reshape(z, [z.get_shape()[0], 1, 1, 1])
 
             D_logit = [feature_loss + [z]]
-            return D_logit, D_summary
+            return D_logit
 
     def feature_discriminator(self, x_init, code, reuse=False, scope=None, label=None):
         D_logit = []
-        D_summary = []
         with tf.variable_scope(scope, reuse=reuse):
             for scale in range(self.n_scale):
                 feature_loss = []
@@ -589,12 +577,9 @@ class SPADE(object):
                 feature_loss.append(x)
                 D_logit.append(feature_loss)
 
-                feature_summary = tf.summary.scalar(label + ".logit_" + str(scale) , tf.reduce_mean(x))
-                D_summary.append(feature_summary)
-
                 x_init = down_sample_avg(x_init)
 
-            return D_logit, D_summary
+            return D_logit
 
     ##################################################################################
     # Model
@@ -627,7 +612,7 @@ class SPADE(object):
             alpha = tf.random_uniform(shape=[shape[0], 1, 1, 1], minval=0., maxval=1.)
             interpolated = alpha * real + (1. - alpha) * fake
 
-        logit, logit_summary = discriminator(interpolated, code=code, reuse=True, scope='discriminator_' + name + '', label='interpolated_' + name + '')
+        logit = discriminator(interpolated, code=code, reuse=True, scope='discriminator_' + name + '', label='interpolated_' + name + '')
 
         GP = []
 
@@ -791,15 +776,15 @@ class SPADE(object):
         #resample_fake_nondet_x_output = self.generator_spatial(resample_full_nondet_x_code, resample_fake_det_x_scaffold, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet")
         resample_fake_nondet_x_output = self.generator_features(resample_full_nondet_x_code, resample_fake_det_x_features, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet")
 
-        [code_det_prior_real_logit, code_det_prior_real_summary], [code_det_prior_fake_logit, code_det_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_gaussian_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
-        [code_nondet_prior_real_logit, code_nondet_prior_real_summary], [code_nondet_prior_fake_logit, code_nondet_prior_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_gaussian_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
+        code_det_prior_real_logit, code_det_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(random_gaussian_det_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), fake_det_x_code], -1), name='det_prior')
+        code_nondet_prior_real_logit, code_nondet_prior_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(random_gaussian_nondet_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), fake_nondet_x_code], -1), name='nondet_prior')
 
-        [code_det_gen_real_logit, code_det_gen_real_summary], [code_det_gen_fake_logit, code_det_gen_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_code], -1), name='gen_det')
-        [code_nondet_gen_real_logit, code_nondet_gen_real_summary], [code_nondet_gen_fake_logit, code_nondet_gen_fake_summary] = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
+        code_det_gen_real_logit, code_det_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_code], -1), name='gen_det')
+        code_nondet_gen_real_logit, code_nondet_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
 
         discriminator_fun = self.full_discriminator
-        [nondet_real_logit, real_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
-        [nondet_fake_logit, fake_nondet_summary] = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        nondet_real_logit = discriminator_fun(tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
+        nondet_fake_logit = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
             GP = self.gradient_penalty(real=tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
@@ -1037,8 +1022,8 @@ class SPADE(object):
         g_nondet_summary_list = [self.summary_g_nondet_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl2_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_prior_adv_loss, self.summary_e_nondet_gen_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_prior2_loss, self.summary_e_nondet_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negentctx_loss, self.summary_e_nondet_prior_loss, self.summary_e_nondet_prior2_loss, self.summary_e_nondet_negent_loss]
         g_det_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_segmapce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_g_det_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl2_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_prior_adv_loss, self.summary_e_det_gen_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_klctx_loss, self.summary_e_det_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_prior2_loss, self.summary_e_det_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negentctx_loss, self.summary_e_det_prior_loss, self.summary_e_det_prior2_loss, self.summary_e_det_negent_loss]
         d_nondet_summary_list = [self.summary_global_step, self.summary_d_nondet_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_score_real, self.summary_d_nondet_score_fake, self.summary_d_nondet_score_diff, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
-        de_nondet_summary_list = [self.summary_de_nondet_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss] + code_nondet_prior_real_summary + code_nondet_prior_fake_summary + code_nondet_gen_real_summary + code_nondet_gen_fake_summary
-        de_det_summary_list = [self.summary_de_det_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss] + code_det_prior_real_summary + code_det_prior_fake_summary + code_det_gen_real_summary + code_det_gen_fake_summary
+        de_nondet_summary_list = [self.summary_de_nondet_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss]
+        de_det_summary_list = [self.summary_de_det_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss]
 
         self.G_nondet_loss = tf.summary.merge(g_nondet_summary_list)
         self.G_det_loss = tf.summary.merge(g_det_summary_list)
