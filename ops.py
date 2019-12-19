@@ -752,6 +752,11 @@ def negent_loss(mean, logvar):
 
     return loss
 
+def gaussian_wasserstein2_loss(mean1, logvar1, mean2, logvar2):
+    k = mean1.get_shape()[-1]
+    loss = 0.5 * tf.reduce_mean(input_tensor=tf.reduce_sum((mean1-mean2)**2 + (tf.exp(logvar1*0.5) - tf.exp(logvar2*0.5))**2, axis=-1)) / int(k)  
+    return loss
+
 def regularization_loss(scope_name) :
     """
     If you want to use "Regularization"
