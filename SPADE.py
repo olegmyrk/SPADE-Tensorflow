@@ -479,24 +479,26 @@ class SPADE(object):
             feature_loss = []
             x = x_init
             
+            x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='preconv')
+            x = lrelu(x, 0.2)
             #x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
-            x = constin_resblock(x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
+            #x = constin_resblock(x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
 
-            #x = conv(scaffold, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv')
-            #x = instance_norm(x, scope='ins_norm')
+            x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv')
+            x = instance_norm(x, scope='ins_norm')
+            x = lrelu(x, 0.2)
             #x = adain_resblock(code, x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
-            x = constin_resblock(x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
-            x = down_sample_avg(x)
+            #x = constin_resblock(x, channel * 2, use_bias=True, sn=self.sn, norm=True, scope='resblock')
             
             feature_loss.append(x)
 
             for i in range(3):
-                #x = lrelu(x, 0.2)
-                #x = conv(x, channel * 2, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='resblock_' + str(i))
-                #x = instance_norm(x, scope='ins_norm_' + str(i))
+                x = conv(x, channel * 2, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_' + str(i))
+                x = instance_norm(x, scope='ins_norm_' + str(i))
+                x = lrelu(x, 0.2)
                 #x = adain_resblock(code, x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
-                x = constin_resblock(x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
-                x = down_sample_avg(x)
+                #x = constin_resblock(x, channel * 4, use_bias=True, sn=self.sn, norm=True, scope='resblock_' + str(i))
+                #x = down_sample_avg(x)
 
                 feature_loss.append(x)
 
@@ -504,37 +506,27 @@ class SPADE(object):
 
                 # 128, 256, 512
 
-            #x = lrelu(x, 0.2)
-            #x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='resblock_3')
-            #x = instance_norm(x, scope='ins_norm_3')
+            x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_3')
+            x = instance_norm(x, scope='ins_norm_3')
+            x = lrelu(x, 0.2)
             #x = adain_resblock(0*code, x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
-            x = constin_resblock(x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
-            x = down_sample_avg(x)
+            #x = constin_resblock(x, channel*4, use_bias=True, sn=self.sn, norm=True, scope='resblock_3')
+            #x = down_sample_avg(x)
 
             #if self.img_height >= 256 or self.img_width >= 256 :
             if self.img_height >= 256 or self.img_width >= 256 :
-                #x = lrelu(x, 0.2)
-                #x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=False, sn=self.sn, scope='resblock_4')
-                #x = instance_norm(x, scope='ins_norm_4')
+                x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=False, sn=self.sn, scope='conv_4')
+                x = instance_norm(x, scope='ins_norm_4')
+                x = lrelu(x, 0.2)
                 #x = adain_resblock(0*code, x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
-                x = constin_resblock(x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
-                x = down_sample_avg(x)
+                #x = constin_resblock(x, channel*8, use_bias=False, sn=self.sn, norm=True, scope='resblock_4')
+                #x = down_sample_avg(x)
                 
                 feature_loss.append(x)
 
-            x0 = fully_connected(x, channel, use_bias=True, sn=self.sn, scope='linear_x0')
-            x0 = lrelu(x0, 0.2)
-                
-            z0 = fully_connected(x0, 1, sn=self.sn, scope='linear_z0')
-            #z0 = tf.reduce_mean(x0*fixed_code, 1, keep_dims=True)
-            #z0 = -tf.reduce_mean(tf.math.square(x0-fixed_code), 1, keep_dims=True)
-            #z0 = -tf.reduce_mean(tf.math.abs(x0-fixed_code), 1, keep_dims=True)
-            
-            z = z0
+            x = fully_connected(x, channel, use_bias=True, sn=self.sn, scope='linear_x')
 
-            z = tf.reshape(z, [z.get_shape()[0], 1, 1, 1])
-
-            D_logit = [feature_loss + [z]]
+            D_logit = [feature_loss + [x]]
             return D_logit
 
     def feature_discriminator(self, x_init, code, reuse=False, scope=None, label=None):
@@ -544,28 +536,25 @@ class SPADE(object):
                 feature_loss = []
                 channel = self.ch
                 x = x_init
-            
-                #x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, norm=False, scope='ms_' + str(scale) + '_preresblock')
-                x = constin_resblock(x, channel, use_bias=True, sn=self.sn, norm=False, scope='preresblock')
 
-                #x = conv(x, channel, kernel=4, stride=2, pad=1, use_bias=True, sn=False, scope='ms_' + str(scale) + 'conv_0')
-                #x = lrelu(x, 0.2)
+                x = conv(x, channel, kernel=4, stride=2, pad=1, use_bias=True, sn=False, scope='ms_' + str(scale) + 'conv_0')
+                x = lrelu(x, 0.2)
                 #x = adain_resblock(code, x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
-                x = constin_resblock(x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
-                x = down_sample_avg(x)
+                #x = constin_resblock(x, channel, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + '_resblock')
 
                 feature_loss.append(x)
 
                 for i in range(1, self.n_dis):
-                    #stride = 1 if i == self.n_dis - 1 else 2
-                    #x = conv(x, channel * 2, kernel=4, stride=stride, pad=1, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'conv_' + str(i))
-                    #x = instance_norm(x, scope='ms_' + str(scale) + 'ins_norm_' + str(i))
-                    #x = lrelu(x, 0.2)
+                    stride = 1 if i == self.n_dis - 1 else 2
+
+                    x = conv(x, channel * 2, kernel=4, stride=stride, pad=1, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'conv_' + str(i))
+                    x = instance_norm(x, scope='ms_' + str(scale) + 'ins_norm_' + str(i))
+                    x = lrelu(x, 0.2)
 
                     #x = adain_resblock(code, x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
-                    x = constin_resblock(x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
-                    if i !=  self.n_dis - 1:
-                        x = down_sample_avg(x)
+                    #x = constin_resblock(x, channel*2, use_bias=True, sn=self.sn, scope='ms_' + str(scale) + 'resblock_' + str(i))
+                    #if i !=  self.n_dis - 1:
+                    #    x = down_sample_avg(x)
 
                     feature_loss.append(x)
 
@@ -672,12 +661,12 @@ class SPADE(object):
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
         x_det_ctxcode_mean, x_det_ctxcode_logvar = self.encoder_code(self.real_ctx, scope='encoder_det_ctxcode')
         fake_det_x_ctxcode = z_sample(x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        x_det_ctxcodex_mean, x_det_ctxcodex_logvar = map(tf.stop_gradient, self.encoder_code(real_x, reuse=True, scope='encoder_det_ctxcode'))
+        x_det_ctxcodex_mean, x_det_ctxcodex_logvar = map(tf.stop_gradient, self.encoder_code(self.real_x, reuse=True, scope='encoder_det_ctxcode'))
         fake_det_x_ctxcodex = z_sample(x_det_ctxcodex_mean, x_det_ctxcodex_logvar)
 
-        x_det_codectx_mean, x_det_codectx_logvar = map(tf.stop_gradient, self.encoder_code(real_ctx, reuse=True, scope='encoder_det_code'))
+        x_det_codectx_mean, x_det_codectx_logvar = map(tf.stop_gradient, self.encoder_code(self.real_ctx, reuse=True, scope='encoder_det_code'))
         fake_det_x_codectx = z_sample(x_det_codectx_mean, x_det_codectx_logvar)
-        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, 0*fake_det_x_codectx],-1)
+        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, fake_det_x_codectx],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, scope="generator_det_code")
         
         resample_det_supercode = fake_det_x_supercode#z_sample(*self.prior_code(batch_size))
@@ -707,12 +696,12 @@ class SPADE(object):
         fake_nondet_x_supercode = z_sample(x_nondet_supercode_mean, x_nondet_supercode_logvar)
         x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar = self.encoder_code(self.real_ctx, scope='encoder_nondet_ctxcode')
         fake_nondet_x_ctxcode = z_sample(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar = map(tf.stop_gradient, self.encoder_code(real_x, reuse=True, scope='encoder_nondet_ctxcode'))
+        x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar = map(tf.stop_gradient, self.encoder_code(self.real_x, reuse=True, scope='encoder_nondet_ctxcode'))
         fake_nondet_x_ctxcodex = z_sample(x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar)
 
-        x_nondet_codectx_mean, x_nondet_codectx_logvar = map(tf.stop_gradient, self.encoder_code(real_ctx, reuse=True, scope='encoder_nondet_code'))
+        x_nondet_codectx_mean, x_nondet_codectx_logvar = map(tf.stop_gradient, self.encoder_code(self.real_ctx, reuse=True, scope='encoder_nondet_code'))
         fake_nondet_x_codectx = z_sample(x_nondet_codectx_mean, x_nondet_codectx_logvar)
-        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, 0*fake_nondet_x_codectx],-1)
+        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, fake_nondet_x_codectx],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
         resample_nondet_supercode = fake_nondet_x_supercode#z_sample(*self.prior_code(batch_size))
@@ -788,12 +777,12 @@ class SPADE(object):
         code_det_gen_real_logit, code_det_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), tf.stop_gradient(fake_det_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_det_x_full_ctxcode), random_gen_det_code], -1), name='gen_det')
         code_nondet_gen_real_logit, code_nondet_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), name='gen_nondet')
 
-        discriminator_fun = self.full_discriminator
-        nondet_real_logit = discriminator_fun(tf.concat([self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
-        nondet_fake_logit = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        discriminator_fun = self.feature_discriminator
+        nondet_real_logit = discriminator_fun(tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, scope='discriminator_nondet', label='real_nondet')
+        nondet_fake_logit = discriminator_fun(tf.concat([0*self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
-            GP = self.gradient_penalty(real=tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
+            GP = self.gradient_penalty(real=tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([0*self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, name='nondet')
         else:
             GP = 0
 
@@ -902,7 +891,7 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 10*g_nondet_vgg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + e_nondet_gen_adv_loss + (0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+            self.g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + e_nondet_gen_adv_loss + (0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
             self.g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + e_det_gen_adv_loss + (0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + (0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
             self.de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
             self.de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss
@@ -1053,7 +1042,7 @@ class SPADE(object):
 
         g_nondet_summary_list = [self.summary_g_nondet_loss, self.summary_g_nondet_adv_loss, self.summary_g_nondet_reg_loss, self.summary_g_nondet_ce_loss, self.summary_g_nondet_vgg_loss, self.summary_g_nondet_feature_loss, self.summary_e_nondet_kl_loss, self.summary_e_nondet_kl2_loss, self.summary_e_nondet_kl_loss_ema, self.summary_e_nondet_kl_loss_weight, self.summary_e_nondet_prior_adv_loss, self.summary_e_nondet_gen_adv_loss, self.summary_e_nondet_reg_loss, self.summary_g_nondet_code_ce_loss, self.summary_e_nondet_code_kl_loss, self.summary_e_nondet_klctx_loss, self.summary_e_nondet_code_kl2_loss, self.summary_e_nondet_klctx2_loss, self.summary_e_nondet_code_prior_loss, self.summary_e_nondet_code_prior2_loss, self.summary_e_nondet_priorctx_loss, self.summary_e_nondet_code_negent_loss, self.summary_e_nondet_negentctx_loss, self.summary_e_nondet_prior_loss, self.summary_e_nondet_prior2_loss, self.summary_e_nondet_negent_loss]
         g_det_summary_list = [self.summary_g_det_ce_loss, self.summary_g_det_segmapce_loss, self.summary_g_det_vgg_loss, self.summary_g_det_reg_loss, self.summary_g_det_loss, self.summary_e_det_kl_loss, self.summary_e_det_kl2_loss, self.summary_e_det_kl_loss_ema, self.summary_e_det_kl_loss_weight, self.summary_e_det_prior_adv_loss, self.summary_e_det_gen_adv_loss, self.summary_e_det_reg_loss, self.summary_g_det_code_ce_loss, self.summary_e_det_code_kl_loss, self.summary_e_det_klctx_loss, self.summary_e_det_klctx2_loss, self.summary_e_det_code_kl2_loss, self.summary_e_det_code_prior_loss, self.summary_e_det_code_prior2_loss, self.summary_e_det_priorctx_loss, self.summary_e_det_code_negent_loss, self.summary_e_det_negentctx_loss, self.summary_e_det_prior_loss, self.summary_e_det_prior2_loss, self.summary_e_det_negent_loss]
-        d_nondet_summary_list = [self.summary_global_step, self.summary_d_nondet_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_score_real, self.summary_d_nondet_score_fake, self.summary_d_nondet_score_diff, self.summary_d_nondet_reg_loss] + real_nondet_summary + fake_nondet_summary
+        d_nondet_summary_list = [self.summary_global_step, self.summary_d_nondet_loss, self.summary_d_nondet_adv_loss, self.summary_d_nondet_score_real, self.summary_d_nondet_score_fake, self.summary_d_nondet_score_diff, self.summary_d_nondet_reg_loss]
         de_nondet_summary_list = [self.summary_de_nondet_loss, self.summary_de_nondet_prior_adv_loss, self.summary_de_nondet_prior_reg_loss]
         de_det_summary_list = [self.summary_de_det_loss, self.summary_de_det_prior_adv_loss, self.summary_de_det_prior_reg_loss]
 
