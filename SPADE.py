@@ -524,7 +524,7 @@ class SPADE(object):
                 
                 feature_loss.append(x)
 
-            x = fully_connected(x, channel, use_bias=True, sn=self.sn, scope='linear_x')
+            x = fully_connected(x, 1, use_bias=True, sn=self.sn, scope='linear_x')
 
             D_logit = [feature_loss + [x]]
             return D_logit
