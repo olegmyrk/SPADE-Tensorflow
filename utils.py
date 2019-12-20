@@ -248,7 +248,7 @@ def show_all_variables():
         var_bytes = var_size * var.dtype.size
         total_size += var_size
         total_bytes += var_bytes
-        print(var.name, var.get_shape(),
+        print("Variable: %s%s" % (var.name, var.get_shape()),
             '[%d, bytes: %d]' % (var_size, var_bytes))
     print('Total size of variables: %d' % total_size)
     print('Total bytes of variables: %d' % total_bytes)

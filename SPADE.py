@@ -1195,15 +1195,27 @@ class SPADE(object):
 
             # saver to save model
             print("> Loading checkpoint", time.time())
-            checkpoint = tf.train.Checkpoint(global_step=global_step, **dict([(var.name, var) for var in tf.compat.v1.global_variables()]))
-            checkpoint_manager = tf.train.CheckpointManager(checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
+            full_vars = dict([(var.name, var) for var in tf.compat.v1.global_variables()])
+            full_checkpoint = tf.train.Checkpoint(global_step=global_step, **full_vars)
+            checkpoint_manager = tf.train.CheckpointManager(full_checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
 
             # restore check-point if it exits
             if checkpoint_manager.latest_checkpoint:
-                checkpoint_vars = tf.train.list_variables(checkpoint_manager.latest_checkpoint)
-                for (checkpoint_var_name, checkpoint_var_shape) in checkpoint_vars:
+                checkpoint_vars = dict(tf.train.list_variables(checkpoint_manager.latest_checkpoint))
+                for (checkpoint_var_name, checkpoint_var_shape) in checkpoint_vars.items():
                     print("Checkpoint variable: %s%s" % (checkpoint_var_name, checkpoint_var_shape))
-                checkpoint.restore(checkpoint_manager.latest_checkpoint).expect_partial()
+
+                filtered_vars = {}
+                for full_var_name in full_vars:
+                    full_var_shape = full_vars[full_var_name].shape
+                    checkpoint_var_name = full_var_name.replace("/", ".S") + "/.ATTRIBUTES/VARIABLE_VALUE"
+                    if checkpoint_var_name in checkpoint_vars and checkpoint_vars[checkpoint_var_name] == full_var_shape:
+                        print("Restoring variable: %s%s -> %s" % (full_var_name, full_var_shape, checkpoint_var_name))
+                        filtered_vars[full_var_name] = full_vars[full_var_name]
+                    else:
+                        print("NOT restoring variable: %s%s -> %s" % (full_var_name, full_var_shape, checkpoint_var_name))
+                filtered_checkpoint = tf.train.Checkpoint(global_step=global_step, **filtered_vars)
+                filtered_checkpoint.restore(checkpoint_manager.latest_checkpoint)
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
