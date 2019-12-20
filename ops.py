@@ -550,7 +550,7 @@ def param_free_norm(x, epsilon=1e-5) :
 
 def param_free_batch_norm(x, epsilon=1e-5, scope=None):
     with tf.variable_scope(scope):
-        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
+        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=False)
         shape = mean.get_shape().as_list()
         result = tf.nn.batch_normalization(x, mean, var, tf.zeros_like(mean), tf.ones_like(var), epsilon)
     return result
@@ -567,7 +567,7 @@ def instance_norm(x, epsilon=1e-5, scope='instance_norm'):
 
 def batch_norm(x, epsilon=1e-5, scope=None):
     with tf.variable_scope(scope):
-        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
+        mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=False)
         std = tf.sqrt(var + epsilon)
         shape = mean.get_shape().as_list()
         offset = tf.get_variable("offset", initializer=np.zeros(shape, dtype='float32'))
