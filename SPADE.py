@@ -1260,17 +1260,26 @@ class SPADE(object):
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
+            known_variables = {}
+            for known_variable in tf.global_variables():
+                known_variable_name = known_variable.name.split(':')[0]
+                known_variables[known_variable_name] = known_variable
             checkpoint_reader = tf.train.NewCheckpointReader(ckpt.model_checkpoint_path)
             tensor_shapes = checkpoint_reader.get_variable_to_shape_map()
+            variables_to_tensors = {}
+            for tensor_name in tensor_shapes:
+                target_name = tensor_name
+               if target_name in known_variables:
+                    variables_to_tensors[target_name] = tensor_name
             variables_to_restore = {}
-            for known_variable in tf.global_variables():
-                tensor_name = known_variable.name.split(':')[0]
-                if checkpoint_reader.has_tensor(tensor_name) and known_variable.shape == tensor_shapes[tensor_name]:
+            for known_variable_name in known_variables:
+                known_variable = known_variables[known_variable_name]
+                tensor_name = variables_to_tensors.get(known_variable_name)
+                if tensor_name is not None and known_variable.shape == tensor_shapes[tensor_name]:
                     print("Variable restored: %s Shape: %s" % (known_variable.name, known_variable.shape))
                     variables_to_restore[tensor_name] = known_variable
                 else:
                     print("Variable NOT restored: %s Shape: %s OriginalShape: %s" % (known_variable.name, known_variable.shape, tensor_shapes.get(tensor_name)))
-
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
             saver = tf.train.Saver(variables_to_restore)
             saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
