@@ -45,7 +45,8 @@ def parse_args():
     parser.add_argument('--n_scale', type=int, default=2, help='number of scales')
     parser.add_argument('--code_n_critic', type=int, default=1, help='The number of code critic')
     parser.add_argument('--n_critic', type=int, default=1, help='The number of critic')
-    parser.add_argument('--sn', type=str2bool, default=True, help='using spectral norm')
+    parser.add_argument('--sn_det', type=str2bool, default=True, help='using spectral norm in det')
+    parser.add_argument('--sn_nondet', type=str2bool, default=True, help='using spectral norm in nondet')
 
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--beta2', type=float, default=0.999, help='momentum term of adam')

@@ -555,6 +555,7 @@ def spectral_norm(w, sn, iteration=1):
     w = tf.reshape(w, [-1, w_shape[-1]])
 
     u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
+    sigma = tf.get_variable("sigma", [1,1], initializer=tf.constant_initializer(1.0), trainable=False)
 
     u_hat = u
     v_hat = None
@@ -572,9 +573,9 @@ def spectral_norm(w, sn, iteration=1):
     u_hat = tf.stop_gradient(u_hat)
     v_hat = tf.stop_gradient(v_hat)
 
-    sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+    sigma_hat = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
 
-    with tf.control_dependencies([u.assign(u_hat)] if sn else []):
+    with tf.control_dependencies([u.assign(u_hat), sigma.assign(sigma_hat)] if sn else []):
         w_norm = w / sigma
         w_norm = tf.reshape(w_norm, w_shape)
 
