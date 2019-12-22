@@ -780,11 +780,11 @@ class SPADE(object):
         code_nondet_gen_real_logit, code_nondet_gen_fake_logit = self.discriminate_code(real_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), tf.stop_gradient(fake_nondet_x_code)], -1), fake_code_img=tf.concat([tf.stop_gradient(fake_nondet_x_full_ctxcode), random_gen_nondet_code], -1), sn=self.sn_nondet, name='gen_nondet')
 
         discriminator_fun = self.full_discriminator
-        nondet_real_logit = discriminator_fun(tf.concat([0*self.real_ctx, self.real_x, 0*tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, sn=self.sn_nondet, scope='discriminator_nondet', label='real_nondet')
-        nondet_fake_logit = discriminator_fun(tf.concat([0*self.real_ctx, fake_nondet_x_output, 0*tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, sn=self.sn_nondet, reuse=True, scope='discriminator_nondet', label='fake_nondet')
+        nondet_real_logit = discriminator_fun(tf.concat([self.real_ctx, self.real_x, 0*tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, sn=self.sn_nondet, scope='discriminator_nondet', label='real_nondet')
+        nondet_fake_logit = discriminator_fun(tf.concat([self.real_ctx, fake_nondet_x_output, 0*tf.stop_gradient(fake_det_x_mean)], -1), fake_full_nondet_x_discriminator_code, sn=self.sn_nondet, reuse=True, scope='discriminator_nondet', label='fake_nondet')
         
         if self.gan_type.__contains__('wgan-') or self.gan_type == 'dragan':
-            GP = self.gradient_penalty(real=tf.concat([0*self.real_ctx, self.real_x, tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([0*self.real_ctx, fake_nondet_x_output, tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, sn=self.sn_nondet, name='nondet')
+            GP = self.gradient_penalty(real=tf.concat([self.real_ctx, self.real_x, 0*tf.stop_gradient(fake_det_x_mean)], -1), fake=tf.concat([self.real_ctx, fake_nondet_x_output, 0*tf.stop_gradient(fake_det_x_mean)],-1), code=fake_full_nondet_x_discriminator_code, discriminator=discriminator_fun, sn=self.sn_nondet, name='nondet')
         else:
             GP = 0
 
