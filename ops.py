@@ -550,25 +550,25 @@ def softmax(x):
 
 def param_free_norm(x, epsilon=1e-5) :
     mean, var = tf.nn.moments(x=x, axes=[1, 2], keepdims=True)
-    inv = tf.math.rsqrt(var + epsilon)
-    result = (x - mean) * inv
+    std = tf.sqrt(var + epsilon)
+
+    return (x - mean) / std
 
 def param_free_batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     with tf.compat.v1.variable_scope(scope, reuse=reuse):
         mean, var = tf.nn.moments(x, range(len(x.get_shape())-1), keep_dims=True)
-        #inv = tf.math.rsqrt(var + epsilon)
-        #result = (x - mean) * inv
+        shape = mean.get_shape().as_list()
         result = tf.nn.batch_normalization(x, mean, var, tf.zeros_like(mean), tf.ones_like(var), epsilon)
     return result
 
 def instance_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
     with tf.compat.v1.variable_scope(scope, reuse=reuse):
         mean, var = tf.nn.moments(x=x, axes=[1, 2], keepdims=True)
-        inv = tf.math.rsqrt(var + epsilon)
+        std = tf.math.sqrt(var + epsilon)
         shape = mean.get_shape().as_list()
         offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))
         scale = get_trainable_variable("scale", initializer=np.ones(shape, dtype='float32'))
-        result = (x - mean) * inv * scale + offset
+        result = (x - mean) / std * scale + offset
     return result
 
 def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
@@ -577,8 +577,6 @@ def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
         shape = mean.get_shape().as_list()
         offset = get_trainable_variable("offset", initializer=np.zeros(shape, dtype='float32'))
         scale = get_trainable_variable("scale", initializer=np.ones(shape, dtype='float32'))
-        #inv = tf.math.rsqrt(var + epsilon)
-        #result = (x - mean) * inv * scale + offset
         result = tf.nn.batch_normalization(x, mean, var, offset, scale, epsilon)
     return result
 
