@@ -1,5 +1,5 @@
 import tensorflow as tf
-#from tensorflow.keras.applications.vgg19 import preprocess_input
+from tensorflow.keras.applications.vgg19 import preprocess_input
 from ops import L1_mean_loss
 import numpy as np
 
@@ -59,7 +59,7 @@ class Vgg19(tf.keras.Model):
         out = [h_relu1, h_relu2, h_relu3, h_relu4, h_relu5]
         return out
 
-def preprocess_input(x, data_format=None, mode='caffe', **kwargs):
+def custom_preprocess_input(x, data_format=None, mode='caffe', **kwargs):
     #backend, _, _, _ = get_submodules_from_kwargs(kwargs)
     backend = tf.keras.backend
 
