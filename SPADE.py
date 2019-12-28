@@ -893,8 +893,8 @@ class SPADE(object):
             e_nondet_kl_loss_weight = tf.maximum(0.0,e_nondet_kl_loss_ema - 1.0)/1.0
             e_nondet_kl_loss_adjusted = e_nondet_kl_loss_weight*e_nondet_kl_loss
 
-            self.g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + e_nondet_gen_adv_loss + 0.01*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
-            self.g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + e_det_gen_adv_loss + 0.01*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+            self.g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0.1*g_nondet_vgg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + e_nondet_gen_adv_loss + 0.01*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+            self.g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0.1*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + e_det_gen_adv_loss + 0.01*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
             self.de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
             self.de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss
             self.d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
@@ -1055,9 +1055,20 @@ class SPADE(object):
         self.DE_det_loss = tf.summary.merge(de_det_summary_list)
         self.D_nondet_loss = tf.summary.merge(d_nondet_summary_list)
 
+    def initialize(self):
+        vars_to_initialize = []
+        for var in tf.global_variables():
+            if not var.name.startswith("block"):
+                print("Variable initialized: %s" % (var.name,))
+                vars_to_initialize.append(var)
+            else:
+                print("Variable NOT initialized: %s" % (var.name,))
+        self.sess.run(tf.variables_initializer(vars_to_initialize))
+
     def train(self):
         # initialize all variables
-        tf.global_variables_initializer().run()
+        #tf.global_variables_initializer().run()
+        self.initialize()
 
         # saver to save model
         self.saver = tf.train.Saver(max_to_keep=1000)
@@ -1275,7 +1286,7 @@ class SPADE(object):
             for known_variable_name in known_variables:
                 known_variable = known_variables[known_variable_name]
                 tensor_name = variables_to_tensors.get(known_variable_name)
-                if tensor_name is not None and known_variable.shape == tensor_shapes[tensor_name]:
+                if tensor_name is not None and known_variable.shape == tensor_shapes[tensor_name] and not tensor_name.startswith("block"):
                     print("Variable restored: %s Shape: %s" % (known_variable.name, known_variable.shape))
                     variables_to_restore[tensor_name] = known_variable
                 else:
@@ -1291,7 +1302,8 @@ class SPADE(object):
             return False, 0
 
     def random_test(self):
-        tf.global_variables_initializer().run()
+        # initialize all variables
+        self.initialize()
 
         files = glob('./dataset/{}/{}/*.*'.format(self.dataset_name, 'test'))
 
@@ -1334,7 +1346,8 @@ class SPADE(object):
         index.close()
 
     def guide_test(self):
-        tf.global_variables_initializer().run()
+        # initialize all variables
+        self.initialize()
 
         files = glob('./dataset/{}/{}/*.*'.format(self.dataset_name, 'test'))
 
