@@ -1162,9 +1162,6 @@ class SPADE(object):
         dataset = distribute_strategy.experimental_distribute_dataset(dataset)
 
         with distribute_strategy.scope():
-            # build global step
-            global_step = tf.Variable(0, dtype=tf.int64, name="global_step", aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, trainable=False)
-
             # prepare model
             print("> Preparing model", time.time())
             self.prepare_model()
@@ -1173,11 +1170,12 @@ class SPADE(object):
             print("> Building model", time.time())
             @tf.function
             def build():
-                def build_fn(global_step):
+                def build_fn():
+                    global_step = tf.compat.v1.train.get_or_create_global_step()
                     fake_batch_size = 1
                     (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot) = self.build_fake_inputs(fake_batch_size)
                     return self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
-                distribute_strategy.experimental_run_v2(build_fn, args=(0,))
+                distribute_strategy.experimental_run_v2(build_fn, args=())
             build()
             del build
 
@@ -1190,38 +1188,16 @@ class SPADE(object):
 
             # saver to save model
             print("> Loading checkpoint", time.time())
-            full_vars = dict([(var.name, var) for var in tf.compat.v1.global_variables()])
-            full_checkpoint = tf.train.Checkpoint(global_step=global_step, **full_vars)
-            checkpoint_manager = tf.train.CheckpointManager(full_checkpoint, os.path.join(self.checkpoint_dir, self.model_dir), max_to_keep=1000)
-
-            # restore check-point if it exits
-            if checkpoint_manager.latest_checkpoint:
-                checkpoint_vars = dict(tf.train.list_variables(checkpoint_manager.latest_checkpoint))
-                for (checkpoint_var_name, checkpoint_var_shape) in checkpoint_vars.items():
-                    print("Checkpoint variable: %s%s" % (checkpoint_var_name, checkpoint_var_shape))
-
-                filtered_vars = {}
-                for full_var_name in full_vars:
-                    full_var_shape = full_vars[full_var_name].shape
-                    checkpoint_var_name = full_var_name.replace("/", ".S") + "/.ATTRIBUTES/VARIABLE_VALUE"
-                    if checkpoint_var_name in checkpoint_vars and checkpoint_vars[checkpoint_var_name] == full_var_shape:
-                        print("Restoring variable: %s%s -> %s" % (full_var_name, full_var_shape, checkpoint_var_name))
-                        filtered_vars[full_var_name] = full_vars[full_var_name]
-                    else:
-                        print("NOT restoring variable: %s%s -> %s" % (full_var_name, full_var_shape, checkpoint_var_name))
-                filtered_checkpoint = tf.train.Checkpoint(global_step=global_step, **filtered_vars)
-                filtered_checkpoint.restore(checkpoint_manager.latest_checkpoint)
-                print(" [*] Load SUCCESS")
-            else:
-                print(" [!] Load failed...")
+            checkpoint_manager = self.load(self.checkpoint_dir)
 
             # record start time
             print("> Training", time.time())
             start_time = time.time()
 
             def train_loop():
-                def train_det_grad(global_step, train_main, discriminate, *inputs):
-                    def train_fn(global_step, *inputs):
+                def train_det_grad(train_main, discriminate, *inputs):
+                    def train_fn(*inputs):
+                        global_step = tf.compat.v1.train.get_or_create_global_step()
                         with tf.GradientTape(persistent=True) as tape:
                             inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det, outputs_random_gen_det), _, _ = self.execute_model(global_step, *inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
@@ -1236,7 +1212,7 @@ class SPADE(object):
                             global_step.assign_add(1)
                         return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, outputs_random_gen_det
 
-                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
+                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = distribute_strategy.experimental_run_v2(train_fn, args=inputs)
 
                     converted_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
 
@@ -1255,19 +1231,20 @@ class SPADE(object):
                     return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det, converted_outputs_random_gen_det 
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_det_grad_both(global_step, train_main, *inputs):
-                    return train_det_grad(global_step, train_main, None, *inputs)
+                def train_det_grad_both(train_main, *inputs):
+                    return train_det_grad(train_main, None, *inputs)
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_det_grad_discriminate(global_step, train_main, *inputs):
-                    return train_det_grad(global_step, train_main, True, *inputs)
+                def train_det_grad_discriminate(train_main, *inputs):
+                    return train_det_grad(train_main, True, *inputs)
                 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_det_grad_generate(global_step, train_main, *inputs):
-                    return train_det_grad(global_step, train_main, False, *inputs)
+                def train_det_grad_generate(train_main, *inputs):
+                    return train_det_grad(train_main, False, *inputs)
 
-                def train_nondet_grad(global_step, train_main, discriminate, *inputs):
-                    def train_fn(global_step, *inputs):
+                def train_nondet_grad(train_main, discriminate, *inputs):
+                    def train_fn(*inputs):
+                        global_step = tf.compat.v1.train.get_or_create_global_step()
                         with tf.GradientTape(persistent=True) as tape:
                             inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det, outputs_random_gen_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_resample_nondet, outputs_random_nondet, outputs_random_gen_nondet) = self.execute_model(global_step, *inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
@@ -1285,7 +1262,7 @@ class SPADE(object):
                             global_step.assign_add(1)
                         return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, outputs_random_gen_det, result_losses_nondet, outputs_nondet, outputs_resample_nondet, outputs_random_nondet, outputs_random_gen_nondet
 
-                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = distribute_strategy.experimental_run_v2(train_fn, args=(global_step, *inputs))
+                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = distribute_strategy.experimental_run_v2(train_fn, args=inputs)
                    
                     converted_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
 
@@ -1310,16 +1287,16 @@ class SPADE(object):
                     return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det, converted_outputs_random_gen_det, converted_losses_nondet, converted_outputs_nondet, converted_outputs_resample_nondet, converted_outputs_random_nondet, converted_outputs_random_gen_nondet
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_nondet_grad_both(global_step, train_main, *inputs):
-                    return train_nondet_grad(global_step, train_main, None, *inputs)
+                def train_nondet_grad_both(train_main, *inputs):
+                    return train_nondet_grad(train_main, None, *inputs)
  
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_nondet_grad_discriminate(global_step, train_main, *inputs):
-                    return train_nondet_grad(global_step, train_main, True, *inputs)
+                def train_nondet_grad_discriminate(train_main, *inputs):
+                    return train_nondet_grad(train_main, True, *inputs)
                 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_nondet_grad_generate(global_step, train_main, *inputs):
-                    return train_nondet_grad(global_step, train_main, False, *inputs)
+                def train_nondet_grad_generate(train_main, *inputs):
+                    return train_nondet_grad(train_main, False, *inputs)
 
                 # training loop
                 with self.writer.as_default():
@@ -1330,19 +1307,19 @@ class SPADE(object):
                         if not self.train_nondet:
                             #if self.train_main:
                             #    print("L2DET:D", time.time())
-                            #    train_det_grad_discriminate(global_step, self.train_main, *inputs)
+                            #    train_det_grad_discriminate(self.train_main, *inputs)
                             #print("L2DET:G", time.time())
-                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_generate(global_step, self.train_main, *inputs)
+                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_generate(self.train_main, *inputs)
                             print("L2DET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_both(global_step, self.train_main, *inputs)
+                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_both(self.train_main, *inputs)
                         else:
                             #if self.train_main:
                             #    print("L2NONDET:D", time.time())
-                            #    train_nondet_grad_discriminate(global_step, self.train_main, *inputs)
+                            #    train_nondet_grad_discriminate(self.train_main, *inputs)
                             #print("L2NONDET:G", time.time())
-                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_generate(global_step, self.train_main, *inputs)
+                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_generate(self.train_main, *inputs)
                             print("L2NONDET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_both(global_step, self.train_main, *inputs)
+                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_both(self.train_main, *inputs)
 
                         print("L4",  time.time())
                         epoch = (counter-1) // self.iteration 
@@ -1403,40 +1380,36 @@ class SPADE(object):
                                                                    self.kl_weight,
                                                                    sn, TTUR, self.ch, self.num_upsampling_layers, self.ch, self.num_upsampling_layers)
 
-    def save(self, checkpoint_dir, step):
-        checkpoint_dir = os.path.join(checkpoint_dir, self.model_dir)
-
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-
-        self.saver.save(self.sess, os.path.join(checkpoint_dir, self.model_name + '.model'), global_step=step)
-
     def load(self, checkpoint_dir):
         print(" [*] Reading checkpoints...")
         checkpoint_dir = os.path.join(checkpoint_dir, self.model_dir)
 
-        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            checkpoint_reader = tf.compat.v1.train.NewCheckpointReader(ckpt.model_checkpoint_path)
-            tensor_shapes = checkpoint_reader.get_variable_to_shape_map()
-            variables_to_restore = {}
-            for known_variable in tf.compat.v1.global_variables():
-                tensor_name = known_variable.name.split(':')[0]
-                if checkpoint_reader.has_tensor(tensor_name) and known_variable.shape == tensor_shapes[tensor_name]:
-                    print("Variable restored: %s Shape: %s" % (known_variable.name, known_variable.shape))
-                    variables_to_restore[tensor_name] = known_variable
-                else:
-                    print("Variable NOT restored: %s Shape: %s OriginalShape: %s" % (known_variable.name, known_variable.shape, tensor_shapes.get(tensor_name)))
+        full_vars = dict([(var.name, var) for var in tf.compat.v1.global_variables()])
+        full_checkpoint = tf.train.Checkpoint(**full_vars)
+        checkpoint_manager = tf.train.CheckpointManager(full_checkpoint, checkpoint_dir, max_to_keep=1000)
 
-            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            saver = tf.compat.v1.train.Saver(variables_to_restore)
-            saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
-            counter = int(ckpt_name.split('-')[-1])
-            print(" [*] Success to read {}".format(ckpt_name))
-            return True, counter
+        # restore check-point if it exits
+        if checkpoint_manager.latest_checkpoint:
+            checkpoint_vars = dict(tf.train.list_variables(checkpoint_manager.latest_checkpoint))
+            for (checkpoint_var_name, checkpoint_var_shape) in checkpoint_vars.items():
+                print("Checkpoint variable: %s%s" % (checkpoint_var_name, checkpoint_var_shape))
+
+            filtered_vars = {}
+            for full_var_name in full_vars:
+                full_var_shape = full_vars[full_var_name].shape
+                checkpoint_var_name = full_var_name.replace("/", ".S") + "/.ATTRIBUTES/VARIABLE_VALUE"
+                if checkpoint_var_name in checkpoint_vars and checkpoint_vars[checkpoint_var_name] == full_var_shape:
+                    print("Restoring variable: %s%s -> %s" % (full_var_name, full_var_shape, checkpoint_var_name))
+                    filtered_vars[full_var_name] = full_vars[full_var_name]
+                else:
+                    print("NOT restoring variable: %s%s -> %s" % (full_var_name, full_var_shape, checkpoint_var_name))
+            filtered_vars["global_step"] = full_vars["global_step:0"]
+            filtered_checkpoint = tf.train.Checkpoint(**filtered_vars)
+            filtered_checkpoint.restore(checkpoint_manager.latest_checkpoint)
+            print(" [*] Success to read {}".format(checkpoint_manager.latest_checkpoint))
         else:
             print(" [*] Failed to find a checkpoint")
-            return False, 0
+        return checkpoint_manager
 
     def random_test(self):
         tf.compat.v1.global_variables_initializer().run()
