@@ -236,8 +236,8 @@ class SPADE(object):
                 x = lrelu(x, 0.2)
 
             mean = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_mean')
-            #var = get_trainable_variable("var", [], initializer=tf.compat.v1.constant_initializer(0.0))
-            var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
+            var = get_trainable_variable("var", [], initializer=tf.compat.v1.constant_initializer(0.0))
+            #var = fully_connected(x, out_channel, use_bias=True, sn=False, scope='linear_var')
 
             return mean, tf.math.log(epsilon + tf.math.sigmoid(var))
 
@@ -708,7 +708,8 @@ class SPADE(object):
 
         fake_full_det_x_code = tf.concat([fake_det_x_code, fake_det_x_full_ctxcode],-1)
         fake_full_det_x_z = tf.concat([fake_det_x_code],-1)
-        fake_det_x_features, fake_det_x_stats = self.generator(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x")
+        fake_det_x_features, fake_det_x_stats = self.generator(tf.stop_gradient(fake_full_det_x_code), z=tf.stop_gradient(fake_full_det_x_z), scope="generator_det_x")
+        fake_det_x_output = self.generator(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x_alt")[1][0][0]
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
         fake_det_x_segmap_logits = fake_det_x_stats[1]
@@ -781,7 +782,7 @@ class SPADE(object):
         #g_det_ce_loss = L2_loss(real_x, fake_det_x_mean)
         g_det_ce_loss = gaussian_loss(real_x, fake_det_x_mean, fake_det_x_var)
         g_det_segmapce_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=real_x_segmap_onehot, logits=fake_det_x_stats[1]))
-        g_det_vgg_loss = self.vgg_loss(real_x, fake_det_x_stats[0][0])
+        g_det_vgg_loss = self.vgg_loss(real_x, fake_det_x_output)
         g_det_reg_loss = regularization_loss('generator_det_x')
 
         #g_nondet_code_ce_loss = L2_mean_loss(code_stop_gradient(fake_nondet_x_code), fake_nondet_x_code_mean)
@@ -861,13 +862,13 @@ class SPADE(object):
         de_nondet_gen_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_gen_real_logit, code_nondet_gen_fake_logit)
         de_nondet_gen_reg_loss = regularization_loss('discriminator_nondet_gen_code')
 
-        gp_nondet_loss = (0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + (0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
+        gp_nondet_loss = 0.01*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 0.0001*e_nondet_klctx2_loss
         g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0*g_nondet_vgg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + e_nondet_gen_adv_loss + gp_nondet_loss
         de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss + de_nondet_gen_adv_loss + de_nondet_gen_reg_loss
         d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
-        gp_det_loss = (0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + (0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
-        g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + e_det_gen_adv_loss + gp_det_loss 
+        gp_det_loss = 0.01*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 0.0001*e_det_klctx2_loss
+        g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0.1*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + e_det_gen_adv_loss + gp_det_loss 
         de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss + de_det_gen_adv_loss + de_det_gen_reg_loss
 
         """ Result Image """
