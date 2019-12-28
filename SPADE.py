@@ -1140,7 +1140,17 @@ class SPADE(object):
                             # Update G_det
 
                             print("DET:G", epoch, idx, time.time())
-                            det_code_vae, _, g_det_loss, g_det_summary_str = self.sess.run([self.det_code_vae, self.G_det_optim, self.g_det_loss, self.G_det_loss], feed_dict=train_feed_dict)
+                            #from tensorflow.python.client import timeline
+                            #options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                            #run_metadata = tf.RunMetadata()
+
+                            det_code_vae, _, g_det_loss, g_det_summary_str = self.sess.run([self.det_code_vae, self.G_det_optim, self.g_det_loss, self.G_det_loss], feed_dict=train_feed_dict)#, options=options, run_metadata=run_metadata)
+
+                            #fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+                            #chrome_trace = fetched_timeline.generate_chrome_trace_format()
+                            #with open('timeline/%s/timeline_%s.json' % (self.model_dir, counter), 'w') as f:
+                            #     f.write(chrome_trace)
+
                             self.writer.add_summary(g_det_summary_str, counter)
                             past_g_det_loss = g_det_loss
                             #print("det_code_vae:", det_code_vae) 
