@@ -57,7 +57,7 @@ class Image_data:
 
         return ctximg, img, segmap_img, segmap_onehot
 
-    def preprocess(self):
+    def preprocess(self, is_train=False):
         #self.image = sorted(glob(self.img_dataset_path + '/*.*'))
         #self.segmap = sorted(glob(self.segmap_dataset_path + '/*.*'))
 
@@ -69,12 +69,20 @@ class Image_data:
             else:
                 identity_to_celeba[identity].append(celeba)
 
+        identities = list(sorted(identity_to_celeba.keys()))
+        train_split = int(len(identities)*0.9)
+        if is_train:
+            selected_identities = set(identities[0:train_split])
+        else:
+            selected_identities = set(identities[train_split:])
+
         key_to_celeba = dict([(str(key),celeba) for key, _, celeba in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebA-HQ-to-CelebA-mapping.txt"))[1:])])
         celeba_to_key = dict([(celeba,key) for key, celeba in key_to_celeba.items()])
 
         for key in sorted(key_to_celeba):
             celeba = key_to_celeba[key]
             identity = celeba_to_identity[celeba]
+            if not identity in selected_identities: continue
             for other_celeba in identity_to_celeba[identity]:
                 if celeba != other_celeba and other_celeba in celeba_to_key:
                     other_key = celeba_to_key[other_celeba]
