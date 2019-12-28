@@ -1311,7 +1311,12 @@ class SPADE(object):
                             #print("L2DET:G", time.time())
                             #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_generate(self.train_main, *inputs)
                             print("L2DET", time.time())
+                            #tf.summary.trace_on(graph=True, profiler=True)
                             counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_both(self.train_main, *inputs)
+                            #tf.summary.trace_export(
+                            #      name="train_det_grad_both",
+                            #      step=counter,
+                            #      profiler_outdir="timeline/%s/" % (self.model_name,))
                         else:
                             #if self.train_main:
                             #    print("L2NONDET:D", time.time())
