@@ -627,7 +627,7 @@ class SPADE(object):
 
         """ Input Image"""
         img_class = Image_data(self.img_height, self.img_width, self.img_ch, self.segmap_img_ch, self.dataset_path, self.augment_flag)
-        img_class.preprocess()
+        img_class.preprocess(is_train=True)
         self.color_value_dict = img_class.color_value_dict
         self.out_ch = self.img_ch
         self.segmap_out_ch = len(img_class.color_value_dict)
