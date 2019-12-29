@@ -645,7 +645,7 @@ class SPADE(object):
 
         ctximg_and_img_and_pose_and_segmap_iterator = ctximg_and_img_and_pose_and_segmap.make_one_shot_iterator()
 
-        self.real_ctx, self.real_x, self.pose, self.real_x_segmap, self.real_x_segmap_onehot = ctximg_and_img_and_pose_and_segmap_iterator.get_next()
+        self.real_ctx, self.real_x, self.real_x_pose, self.real_x_segmap, self.real_x_segmap_onehot = ctximg_and_img_and_pose_and_segmap_iterator.get_next()
 
         self.global_step = tf.train.create_global_step()
 
@@ -669,8 +669,8 @@ class SPADE(object):
         x_det_codectx_mean, x_det_codectx_logvar = map(tf.stop_gradient, self.encoder_code(self.real_ctx, sn=self.sn_det, reuse=True, scope='encoder_det_code'))
         fake_det_x_codectx = z_sample(x_det_codectx_mean, x_det_codectx_logvar)
 
-        fake_det_x_full_ctxcode = tf.concat([fake_det_x_supercode, fake_det_x_ctxcode, self.pose],-1)
-        fake_det_x_full_supercode = tf.concat([fake_det_x_supercode, fake_det_x_ctxcode, self.pose],-1)
+        fake_det_x_full_ctxcode = tf.concat([fake_det_x_supercode, fake_det_x_ctxcode, self.real_x_pose],-1)
+        fake_det_x_full_supercode = tf.concat([fake_det_x_supercode, fake_det_x_ctxcode, self.real_x_pose],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_full_supercode, sn=self.sn_det, scope="generator_det_code")
         
         resample_det_full_ctxcode = fake_det_x_full_ctxcode
@@ -679,8 +679,8 @@ class SPADE(object):
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         prior_det_supercode_dist = self.prior_code_dist(fake_det_x_ctxcode, sn=self.sn_det, scope='prior_det_supercode')
         random_det_supercode = prior_det_supercode_dist.sample()
-        random_det_full_ctxcode = tf.concat([random_det_supercode, fake_det_x_ctxcode, self.pose],-1)
-        random_det_full_supercode = tf.concat([random_det_supercode, fake_det_x_ctxcode, self.pose],-1)
+        random_det_full_ctxcode = tf.concat([random_det_supercode, fake_det_x_ctxcode, self.real_x_pose],-1)
+        random_det_full_supercode = tf.concat([random_det_supercode, fake_det_x_ctxcode, self.real_x_pose],-1)
 
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code(batch_size, sn=self.sn_det)
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
@@ -706,8 +706,8 @@ class SPADE(object):
 
         x_nondet_codectx_mean, x_nondet_codectx_logvar = map(tf.stop_gradient, self.encoder_code(self.real_ctx, sn=self.sn_nondet, reuse=True, scope='encoder_nondet_code'))
         fake_nondet_x_codectx = z_sample(x_nondet_codectx_mean, x_nondet_codectx_logvar)
-        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode, self.pose],-1)
-        fake_nondet_x_full_supercode = tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode, self.pose],-1)
+        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode, self.real_x_pose],-1)
+        fake_nondet_x_full_supercode = tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode, self.real_x_pose],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_full_supercode, sn=self.sn_nondet, scope="generator_nondet_code")
         
         resample_nondet_full_ctxcode = fake_nondet_x_full_ctxcode
@@ -716,8 +716,8 @@ class SPADE(object):
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_dist(fake_nondet_x_ctxcode, sn=self.sn_nondet, scope='prior_nondet_supercode')
         random_nondet_supercode = prior_nondet_supercode_dist.sample()
-        random_nondet_full_ctxcode = tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode, self.pose],-1)
-        random_nondet_full_supercode = tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode, self.pose],-1)
+        random_nondet_full_ctxcode = tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode, self.real_x_pose],-1)
+        random_nondet_full_supercode = tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode, self.real_x_pose],-1)
         
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code(batch_size, sn=self.sn_nondet)
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
