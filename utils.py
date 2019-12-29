@@ -17,18 +17,18 @@ class Image_data:
         self.augment_flag = augment_flag
 
         self.dataset_path = dataset_path
-        self.img_dataset_path = os.path.join(dataset_path, 'CelebA-HQ-img')
-        self.segmap_dataset_path = os.path.join(dataset_path, 'CelebAMask-HQ-mask')
 
         self.ctximage = []
         self.image = []
-        self.color_value_dict = {}
+        self.pose = []
         self.segmap = []
+        
+        self.color_value_dict = {}
 
         self.set_x = set()
 
 
-    def image_processing(self, ctxfilename, filename, segmap):
+    def image_processing(self, ctxfilename, filename, pose, segmap):
         ctx = tf.io.read_file(ctxfilename)
         ctx_decode = tf.image.decode_jpeg(ctx, channels=self.channels, dct_method='INTEGER_ACCURATE')
         ctximg = tf.image.resize(ctx_decode, [self.img_height, self.img_width])
@@ -55,9 +55,12 @@ class Image_data:
         label_map = convert_from_color_segmentation(self.color_value_dict, segmap_img, tensor_type=True)
         segmap_onehot = tf.one_hot(label_map, len(self.color_value_dict))
 
-        return ctximg, img, segmap_img, segmap_onehot
+        return ctximg, img, pose, segmap_img, segmap_onehot
 
     def preprocess(self, is_train=False):
+        img_dataset_path = os.path.join(self.dataset_path, 'CelebA-HQ-img')
+        segmap_dataset_path = os.path.join(self.dataset_path, 'CelebAMask-HQ-mask')
+
         #self.image = sorted(glob(self.img_dataset_path + '/*.*'))
         #self.segmap = sorted(glob(self.segmap_dataset_path + '/*.*'))
 
@@ -79,17 +82,22 @@ class Image_data:
         key_to_celeba = dict([(str(key),celeba) for key, _, celeba in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebA-HQ-to-CelebA-mapping.txt"))[1:])])
         celeba_to_key = dict([(celeba,key) for key, celeba in key_to_celeba.items()])
 
+        key_to_pose = dict([(key.replace(".jpg",""),[float(yaw), float(pitch), float(raw)]) for key, yaw, pitch, raw in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebAMask-HQ-pose-anno.txt"))[2:])])
+
         for key in sorted(key_to_celeba):
+            pose = key_to_pose[key]
             celeba = key_to_celeba[key]
             identity = celeba_to_identity[celeba]
             if not identity in selected_identities: continue
-            for other_celeba in identity_to_celeba[identity]:
-                if celeba != other_celeba and other_celeba in celeba_to_key:
-                    other_key = celeba_to_key[other_celeba]
-                    #print("CelebA:", key, celeba, identity, other_celeba, other_key)
-                    self.ctximage.append(self.img_dataset_path + "/" + other_key + ".jpg")
-                    self.image.append(self.img_dataset_path + "/" + key + ".jpg")
-                    self.segmap.append(self.segmap_dataset_path + "/" + key + ".png")
+            other_keys = [celeba_to_key[other_celeba] for other_celeba in identity_to_celeba[identity] if other_celeba in celeba_to_key]
+            if len(other_keys) < 2: continue
+            for other_key in other_keys:
+                if key == other_key: continue
+                #print("CelebA:", key, identity, other_key)
+                self.ctximage.append(img_dataset_path + "/" + other_key + ".jpg")
+                self.image.append(img_dataset_path + "/" + key + ".jpg")
+                self.segmap.append(segmap_dataset_path + "/" + key + ".png")
+                self.pose.append(pose)
 
         self.color_value_dict = {(0, 0, 0): 0, (0, 0, 255): 1, (255, 0, 0): 2, (150, 30, 150): 3, (255, 65, 255): 4, (150, 80, 0): 5, (170, 120, 65): 6, (125, 125, 125): 7, (255, 255, 0): 8, (0, 255, 255): 9, (255, 150, 0): 10, (255, 225, 120): 11, (255, 125, 125): 12, (200, 100, 100): 13, (0, 255, 0): 14, (0, 150, 80): 15, (215, 175, 125): 16, (220, 180, 210): 17, (125, 125, 255): 18}
 

@@ -311,7 +311,7 @@ class SPADE(object):
             x = lrelu(x, 0.2)
             mean = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_mean')
             var = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_var')
-            logits = conv(x, channels=self.segmap_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_logits')
+            logits = conv(tf.stop_gradient(x), channels=self.segmap_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_logits')
 
             return features, [[tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))], logits]
 
@@ -630,7 +630,7 @@ class SPADE(object):
     def prepare_model(self):
         self.vgg_loss = VGGLoss() 
 
-    def execute_model(self, global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot):
+    def execute_model(self, global_step, real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot):
         batch_size = tf.shape(real_ctx)[0]
 
         """ Define Generator, Discriminator """
@@ -650,7 +650,7 @@ class SPADE(object):
 
         x_det_codectx_mean, x_det_codectx_logvar = map(tf.stop_gradient, self.encoder_code(real_ctx, reuse=True, scope='encoder_det_code'))
         fake_det_x_codectx = z_sample(x_det_codectx_mean, x_det_codectx_logvar)
-        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, 0*fake_det_x_codectx],-1)
+        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, 0*fake_det_x_codectx, real_x_pose],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, scope="generator_det_code")
         
         resample_det_supercode = fake_det_x_supercode#z_sample(*self.prior_code(batch_size))
@@ -685,7 +685,7 @@ class SPADE(object):
 
         x_nondet_codectx_mean, x_nondet_codectx_logvar = map(tf.stop_gradient, self.encoder_code(real_ctx, reuse=True, scope='encoder_nondet_code'))
         fake_nondet_x_codectx = z_sample(x_nondet_codectx_mean, x_nondet_codectx_logvar)
-        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, 0*fake_nondet_x_codectx],-1)
+        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, 0*fake_nondet_x_codectx, real_x_pose],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, scope="generator_nondet_code")
         
         resample_nondet_supercode = fake_nondet_x_supercode#z_sample(*self.prior_code(batch_size))
@@ -706,9 +706,9 @@ class SPADE(object):
 
         random_gaussian_nondet_code = z_sample(*self.prior_code(batch_size))
 
-        fake_full_det_x_code = tf.concat([fake_det_x_code, fake_det_x_full_ctxcode],-1)
+        fake_full_det_x_code = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode],-1)
         fake_full_det_x_z = tf.concat([fake_det_x_code],-1)
-        fake_det_x_features, fake_det_x_stats = self.generator(tf.stop_gradient(fake_full_det_x_code), z=tf.stop_gradient(fake_full_det_x_z), scope="generator_det_x")
+        fake_det_x_features, fake_det_x_stats = self.generator(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x")
         fake_det_x_output = self.generator(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x_alt")[1][0][0]
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
@@ -982,7 +982,7 @@ class SPADE(object):
             summary_de_nondet_gen_adv_loss = tf.summary.scalar("de_nondet_gen_adv_loss", de_nondet_gen_adv_loss, step=global_step)
             summary_de_nondet_gen_reg_loss = tf.summary.scalar("de_nondet_gen_reg_loss", de_nondet_gen_reg_loss, step=global_step)
  
-        inputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
+        inputs = (real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot)
             
         losses_det = types.SimpleNamespace()
         losses_det.g_det_loss = g_det_loss
@@ -1012,9 +1012,10 @@ class SPADE(object):
     def build_fake_inputs(self, batch_size):
         real_ctx = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, self.img_height, self.img_width, self.img_ch)))
         real_x = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, self.img_height, self.img_width, self.img_ch)))
+        real_x_pose = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, 3)))
         real_x_segmap = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, self.img_height, self.img_width)))
         real_x_segmap_onehot = tf.convert_to_tensor(np.zeros(dtype=np.float32, shape=(batch_size, self.img_height, self.img_width, self.segmap_ch)))
-        inputs = (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
+        inputs = (real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot)
         return inputs
   
     def build_optimizers(self):
@@ -1106,7 +1107,7 @@ class SPADE(object):
             counter, epoch, idx, self.iteration, duration, d_nondet_loss))
         sys.stdout.flush()
 
-    def report_inputs(self, epoch, idx, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot):
+    def report_inputs(self, epoch, idx, real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot):
         total_batch_size = real_ctx.shape[0]
 
         save_images(real_ctx, [total_batch_size, 1],
@@ -1155,7 +1156,7 @@ class SPADE(object):
         print("Distributed replicas: %s" % (distribute_strategy.num_replicas_in_sync,))
         print("Distributed batch size: %s" % (distributed_batch_size,))
 
-        dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.segmap))
+        dataset = tf.data.Dataset.from_tensor_slices((self.img_class.ctximage, self.img_class.image, self.img_class.pose, self.img_class.segmap))
         dataset = dataset.shuffle(len(self.img_class.image), reshuffle_each_iteration=True).repeat(None)
         dataset = dataset.map(self.img_class.image_processing, num_parallel_calls=64*distributed_batch_size).batch(distributed_batch_size)
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
@@ -1173,8 +1174,8 @@ class SPADE(object):
                 def build_fn():
                     global_step = tf.compat.v1.train.get_or_create_global_step()
                     fake_batch_size = 1
-                    (real_ctx, real_x, real_x_segmap, real_x_segmap_onehot) = self.build_fake_inputs(fake_batch_size)
-                    return self.execute_model(global_step, real_ctx, real_x, real_x_segmap, real_x_segmap_onehot)
+                    (real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot) = self.build_fake_inputs(fake_batch_size)
+                    return self.execute_model(global_step, real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot)
                 distribute_strategy.experimental_run_v2(build_fn, args=())
             build()
             del build
