@@ -655,23 +655,25 @@ class SPADE(object):
         x_det_codectx_mean, x_det_codectx_logvar = map(tf.stop_gradient, self.encoder_code(real_ctx, reuse=True, scope='encoder_det_code'))
         fake_det_x_codectx = z_sample(x_det_codectx_mean, x_det_codectx_logvar)
 
-        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, real_x_pose],-1)
+        fake_det_x_full_ctxcode = tf.concat([fake_det_x_supercode, fake_det_x_ctxcode, real_x_pose],-1)
         fake_det_x_full_supercode = tf.concat([fake_det_x_supercode, fake_det_x_ctxcode, real_x_pose],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_full_supercode, scope="generator_det_code")
         
-        resample_det_full_supercode = fake_det_x_full_supercode#z_sample(*self.prior_code(batch_size))
+        resample_det_full_ctxcode = fake_det_x_full_ctxcode
+        resample_det_full_supercode = fake_det_x_full_supercode
         prior_det_supercode_mean, prior_det_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_det_supercode')
         #random_det_supercode = z_sample(prior_det_supercode_mean, prior_det_supercode_logvar)
         prior_det_supercode_dist = self.prior_code_dist(fake_det_x_ctxcode, channel_multiplier=4, scope='prior_det_supercode')
         random_det_supercode = prior_det_supercode_dist.sample()
+        random_det_full_ctxcode = tf.concat([random_det_supercode, fake_det_x_ctxcode, real_x_pose],-1)
         random_det_full_supercode = tf.concat([random_det_supercode, fake_det_x_ctxcode, real_x_pose],-1)
 
         prior_det_ctxcode_mean, prior_det_ctxcode_logvar = self.prior_code(batch_size)
         #random_det_ctxcode = z_sample(prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
 
-        resample_det_code_mean, resample_det_code_var = self.generator_code(fake_det_x_full_ctxcode, resample_det_full_supercode, reuse=True, scope="generator_det_code")
+        resample_det_code_mean, resample_det_code_var = self.generator_code(resample_det_full_ctxcode, resample_det_full_supercode, reuse=True, scope="generator_det_code")
         resample_det_code = z_sample(resample_det_code_mean, resample_det_code_var)
-        random_det_code_mean, random_det_code_var = self.generator_code(fake_det_x_full_ctxcode, random_det_full_supercode, reuse=True, scope="generator_det_code")
+        random_det_code_mean, random_det_code_var = self.generator_code(random_det_full_ctxcode, random_det_full_supercode, reuse=True, scope="generator_det_code")
         random_det_code = z_sample(random_det_code_mean, random_det_code_var)
 
         random_gaussian_det_code = z_sample(*self.prior_code(batch_size))
@@ -690,29 +692,31 @@ class SPADE(object):
 
         x_nondet_codectx_mean, x_nondet_codectx_logvar = map(tf.stop_gradient, self.encoder_code(real_ctx, reuse=True, scope='encoder_nondet_code'))
         fake_nondet_x_codectx = z_sample(x_nondet_codectx_mean, x_nondet_codectx_logvar)
-        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, real_x_pose],-1)
+        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode, real_x_pose],-1)
         fake_nondet_x_full_supercode = tf.concat([fake_nondet_x_supercode, fake_nondet_x_ctxcode, real_x_pose],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_full_supercode, scope="generator_nondet_code")
         
-        resample_nondet_full_supercode = fake_nondet_x_full_supercode#z_sample(*self.prior_code(batch_size))
+        resample_nondet_full_ctxcode = fake_nondet_x_full_ctxcode
+        resample_nondet_full_supercode = fake_nondet_x_full_supercode
         prior_nondet_supercode_mean, prior_nondet_supercode_logvar = self.prior_code(batch_size, channel_multiplier=4)#self.encoder_code(real_x, scope='prior_nondet_supercode')
         #random_nondet_supercode = z_sample(prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
         prior_nondet_supercode_dist = self.prior_code_dist(fake_nondet_x_ctxcode, channel_multiplier=4, scope='prior_nondet_supercode')
         random_nondet_supercode = prior_nondet_supercode_dist.sample()
+        random_nondet_full_ctxcode = tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode, real_x_pose],-1)
         random_nondet_full_supercode = tf.concat([random_nondet_supercode, fake_nondet_x_ctxcode, real_x_pose],-1)
         
         prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar = self.prior_code(batch_size)
         #random_nondet_ctxcode = z_sample(prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
         
-        resample_nondet_code_mean, resample_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, resample_nondet_full_supercode, reuse=True, scope="generator_nondet_code")
+        resample_nondet_code_mean, resample_nondet_code_var = self.generator_code(resample_nondet_full_ctxcode, resample_nondet_full_supercode, reuse=True, scope="generator_nondet_code")
         resample_nondet_code = z_sample(resample_nondet_code_mean, resample_nondet_code_var)
-        random_nondet_code_mean, random_nondet_code_var = self.generator_code(fake_nondet_x_full_ctxcode, random_nondet_full_supercode, reuse=True, scope="generator_nondet_code")
+        random_nondet_code_mean, random_nondet_code_var = self.generator_code(random_nondet_full_ctxcode, random_nondet_full_supercode, reuse=True, scope="generator_nondet_code")
         random_nondet_code = z_sample(random_nondet_code_mean, random_nondet_code_var)
 
         random_gaussian_nondet_code = z_sample(*self.prior_code(batch_size))
 
         fake_full_det_x_code = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode],-1)
-        fake_full_det_x_z = tf.concat([fake_det_x_code],-1)
+        fake_full_det_x_z = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode],-1)
         fake_det_x_features, fake_det_x_stats = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x")
         fake_det_x_output = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x_alt")[1][0][0]
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
@@ -720,32 +724,32 @@ class SPADE(object):
         fake_det_x_segmap_logits = fake_det_x_stats[1]
         
         fake_full_nondet_x_code = tf.concat([fake_nondet_x_code, 0*fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_code)],-1) 
-        fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, tf.stop_gradient(fake_full_det_x_z)],-1) 
+        fake_full_nondet_x_z = tf.concat([fake_nondet_x_code, 0*fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_full_det_x_z)],-1) 
         fake_full_nondet_x_discriminator_code = tf.concat([fake_nondet_x_code, fake_nondet_x_full_ctxcode, tf.stop_gradient(fake_det_x_code), tf.stop_gradient(fake_det_x_full_ctxcode)],-1) 
         #fake_nondet_x_output = self.decoder_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
         fake_nondet_x_output = self.decoder_features(fake_full_nondet_x_code, list(map(tf.stop_gradient, fake_det_x_features)), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
         random_full_det_x_code = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode], -1)
-        random_full_det_x_z = tf.concat([random_det_code], -1)
+        random_full_det_x_z = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode], -1)
         random_fake_det_x_features, random_fake_det_x_stats = self.decoder(random_full_det_x_code, z=random_full_det_x_z, reuse=True, scope="generator_det_x")
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
         random_fake_det_x_mean, random_fake_det_x_var = random_fake_det_x_stats[0]
         random_fake_det_x_segmap_logits = random_fake_det_x_stats[1]
 
         random_full_nondet_x_code = tf.concat([random_nondet_code, 0*fake_nondet_x_full_ctxcode, random_full_det_x_code], -1) 
-        random_full_nondet_x_z = tf.concat([random_nondet_code, random_full_det_x_z], -1) 
+        random_full_nondet_x_z = tf.concat([random_nondet_code, 0*fake_nondet_x_full_ctxcode, random_full_det_x_z], -1) 
         #random_fake_nondet_x_output = self.decoder_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
         random_fake_nondet_x_output = self.decoder_features(random_full_nondet_x_code, random_fake_det_x_features, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
         resample_full_det_x_code = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode], -1)
-        resample_full_det_x_z = tf.concat([resample_det_code], -1)
+        resample_full_det_x_z = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode], -1)
         resample_fake_det_x_features, resample_fake_det_x_stats = self.decoder(resample_full_det_x_code, z=resample_full_det_x_z, reuse=True, scope="generator_det_x")
         resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
         resample_fake_det_x_mean, resample_fake_det_x_var = resample_fake_det_x_stats[0]
         resample_fake_det_x_segmap_logits = resample_fake_det_x_stats[1]
 
         resample_full_nondet_x_code = tf.concat([resample_nondet_code, 0*fake_nondet_x_full_ctxcode, resample_full_det_x_code], -1)
-        resample_full_nondet_x_z = tf.concat([resample_nondet_code, resample_full_det_x_z], -1)
+        resample_full_nondet_x_z = tf.concat([resample_nondet_code, 0*fake_nondet_x_full_ctxcode, resample_full_det_x_z], -1)
         #resample_fake_nondet_x_output = self.decoder_spatial(resample_full_nondet_x_code, resample_fake_det_x_scaffold, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
         resample_fake_nondet_x_output = self.decoder_features(resample_full_nondet_x_code, resample_fake_det_x_features, z=resample_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
