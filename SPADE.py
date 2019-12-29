@@ -16,7 +16,6 @@ class SPADE(object):
     def __init__(self, args):
 
         self.model_name = 'SPADE'
-        self.train_main = args.train_main
         self.train_nondet = args.train_nondet
 
         self.checkpoint_dir = args.checkpoint_dir
@@ -1313,11 +1312,6 @@ class SPADE(object):
 
                         print("L1", time.time())
                         if not self.train_nondet:
-                            #if self.train_main:
-                            #    print("L2DET:D", time.time())
-                            #    train_det_grad_discriminate(self.train_main, *inputs)
-                            #print("L2DET:G", time.time())
-                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_generate(self.train_main, *inputs)
                             print("L2DET", time.time())
                             #tf.summary.trace_on(graph=True, profiler=True)
                             counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det = train_det_grad_both(self.train_main, *inputs)
@@ -1326,11 +1320,6 @@ class SPADE(object):
                             #      step=counter,
                             #      profiler_outdir="timeline/%s/" % (self.model_name,))
                         else:
-                            #if self.train_main:
-                            #    print("L2NONDET:D", time.time())
-                            #    train_nondet_grad_discriminate(self.train_main, *inputs)
-                            #print("L2NONDET:G", time.time())
-                            #counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_generate(self.train_main, *inputs)
                             print("L2NONDET", time.time())
                             counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_outputs_random_gen_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, result_outputs_random_gen_nondet = train_nondet_grad_both(self.train_main, *inputs)
 
