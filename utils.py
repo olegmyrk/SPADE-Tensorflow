@@ -57,7 +57,7 @@ class Image_data:
 
         return ctximg, img, pose, segmap_img, segmap_onehot
 
-    def preprocess(self, is_train=False):
+    def preprocess(self, is_train):
         img_dataset_path = os.path.join(self.dataset_path, 'CelebA-HQ-img')
         segmap_dataset_path = os.path.join(self.dataset_path, 'CelebAMask-HQ-mask')
 

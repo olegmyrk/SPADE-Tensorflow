@@ -16,6 +16,7 @@ def parse_args():
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
     parser.add_argument('--print_freq', type=int, default=100, help='The number of image_print_freq')
+    parser.add_argument('--validate_freq', type=int, default=100, help='The number of image_validate_freq')
     parser.add_argument('--save_freq', type=int, default=50000, help='The number of ckpt_save_freq')
     parser.add_argument('--decay_flag', type=str2bool, default=True, help='The decay_flag')
     parser.add_argument('--decay_epoch', type=int, default=50, help='decay epoch')
