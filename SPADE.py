@@ -312,7 +312,7 @@ class SPADE(object):
             x = lrelu(x, 0.2)
             mean = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_mean')
             var = conv(x, channels=self.out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_var')
-            logits = conv(x, channels=self.segmap_out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_logits')
+            logits = conv(tf.stop_gradient(x), channels=self.segmap_out_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_logits')
 
             return features, [[tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))], logits]
 
@@ -635,17 +635,17 @@ class SPADE(object):
         self.dataset_num = len(img_class.image)
 
 
-        ctximg_and_img_and_segmap = tf.data.Dataset.from_tensor_slices((img_class.ctximage, img_class.image, img_class.segmap))
+        ctximg_and_img_and_pose_and_segmap = tf.data.Dataset.from_tensor_slices((img_class.ctximage, img_class.image, img_class.pose, img_class.segmap))
 
 
         gpu_device = '/gpu:0'
-        ctximg_and_img_and_segmap = ctximg_and_img_and_segmap.apply(shuffle_and_repeat(self.dataset_num)).apply(
+        ctximg_and_img_and_pose_and_segmap = ctximg_and_img_and_pose_and_segmap.apply(shuffle_and_repeat(self.dataset_num)).apply(
             map_and_batch(img_class.image_processing, self.batch_size, num_parallel_batches=16,
                           drop_remainder=True)).apply(prefetch_to_device(gpu_device, self.batch_size))
 
-        ctximg_and_img_and_segmap_iterator = ctximg_and_img_and_segmap.make_one_shot_iterator()
+        ctximg_and_img_and_pose_and_segmap_iterator = ctximg_and_img_and_pose_and_segmap.make_one_shot_iterator()
 
-        self.real_ctx, self.real_x, self.real_x_segmap, self.real_x_segmap_onehot = ctximg_and_img_and_segmap_iterator.get_next()
+        self.real_ctx, self.real_x, self.pose, self.real_x_segmap, self.real_x_segmap_onehot = ctximg_and_img_and_pose_and_segmap_iterator.get_next()
 
         self.global_step = tf.train.create_global_step()
 
@@ -668,7 +668,7 @@ class SPADE(object):
 
         x_det_codectx_mean, x_det_codectx_logvar = map(tf.stop_gradient, self.encoder_code(self.real_ctx, sn=self.sn_det, reuse=True, scope='encoder_det_code'))
         fake_det_x_codectx = z_sample(x_det_codectx_mean, x_det_codectx_logvar)
-        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, 0*fake_det_x_codectx],-1)
+        fake_det_x_full_ctxcode = tf.concat([fake_det_x_ctxcode, 0*fake_det_x_codectx, self.pose],-1)
         fake_det_x_code_mean, fake_det_x_code_logvar = self.generator_code(fake_det_x_full_ctxcode, fake_det_x_supercode, sn=self.sn_det, scope="generator_det_code")
         
         resample_det_supercode = fake_det_x_supercode#z_sample(*self.prior_code(batch_size))
@@ -703,7 +703,7 @@ class SPADE(object):
 
         x_nondet_codectx_mean, x_nondet_codectx_logvar = map(tf.stop_gradient, self.encoder_code(self.real_ctx, sn=self.sn_nondet, reuse=True, scope='encoder_nondet_code'))
         fake_nondet_x_codectx = z_sample(x_nondet_codectx_mean, x_nondet_codectx_logvar)
-        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, 0*fake_nondet_x_codectx],-1)
+        fake_nondet_x_full_ctxcode = tf.concat([fake_nondet_x_ctxcode, 0*fake_nondet_x_codectx, self.pose],-1)
         fake_nondet_x_code_mean, fake_nondet_x_code_logvar = self.generator_code(fake_nondet_x_full_ctxcode, fake_nondet_x_supercode, sn=self.sn_nondet, scope="generator_nondet_code")
         
         resample_nondet_supercode = fake_nondet_x_supercode#z_sample(*self.prior_code(batch_size))
