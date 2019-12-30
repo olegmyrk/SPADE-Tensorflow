@@ -559,10 +559,10 @@ def spectral_norm(w, sn, iteration=1):
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
-    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
-    sigma = tf.compat.v1.get_variable("sigma", [1, 1], initializer=tf.constant_initializer(1.0), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
-
     if sn:
+        u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
+        sigma = tf.compat.v1.get_variable("sigma", [1, 1], initializer=tf.constant_initializer(1.0), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
+
         u_hat = u
         v_hat = None
         for i in range(iteration):
@@ -586,7 +586,7 @@ def spectral_norm(w, sn, iteration=1):
 
         final_sigma = sigma_hat
     else:
-        final_sigma = sigma
+        final_sigma = 1.0
 
     w_norm = w / final_sigma
     w_norm = tf.reshape(w_norm, w_shape)
