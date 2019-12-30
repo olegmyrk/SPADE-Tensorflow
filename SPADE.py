@@ -643,7 +643,7 @@ class SPADE(object):
         fake_det_x_code = z_sample(x_det_code_mean, x_det_code_logvar)
        
         supercode_stop_gradient = lambda x: x
-        code_stop_gradient = lambda x: tf.stop_gradient(x)
+        code_stop_gradient = lambda x: x
 
         x_det_supercode_mean, x_det_supercode_logvar = self.encoder_supercode(code_stop_gradient(fake_det_x_code), channel_multiplier=4, scope='encoder_det_supercode')
         fake_det_x_supercode = z_sample(x_det_supercode_mean, x_det_supercode_logvar)
@@ -715,7 +715,7 @@ class SPADE(object):
 
         random_gaussian_nondet_code = z_sample(*self.prior_code(batch_size))
 
-        fake_full_det_x_code = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode],-1)
+        fake_full_det_x_code = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode, real_x_pose],-1)
         fake_full_det_x_z = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode],-1)
         fake_det_x_features, fake_det_x_stats = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x")
         fake_det_x_output = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, scope="generator_det_x_alt")[1][0][0]
@@ -729,7 +729,7 @@ class SPADE(object):
         #fake_nondet_x_output = self.decoder_spatial(fake_full_nondet_x_code, tf.stop_gradient(fake_det_x_scaffold), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
         fake_nondet_x_output = self.decoder_features(fake_full_nondet_x_code, list(map(tf.stop_gradient, fake_det_x_features)), z=fake_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
-        random_full_det_x_code = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode], -1)
+        random_full_det_x_code = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode, real_x_pose], -1)
         random_full_det_x_z = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode], -1)
         random_fake_det_x_features, random_fake_det_x_stats = self.decoder(random_full_det_x_code, z=random_full_det_x_z, reuse=True, scope="generator_det_x")
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
@@ -741,7 +741,7 @@ class SPADE(object):
         #random_fake_nondet_x_output = self.decoder_spatial(random_full_nondet_x_code, random_fake_det_x_scaffold, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
         random_fake_nondet_x_output = self.decoder_features(random_full_nondet_x_code, random_fake_det_x_features, z=random_full_nondet_x_z, reuse=True, scope="generator_nondet_x")
 
-        resample_full_det_x_code = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode], -1)
+        resample_full_det_x_code = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode, real_x_pose], -1)
         resample_full_det_x_z = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode], -1)
         resample_fake_det_x_features, resample_fake_det_x_stats = self.decoder(resample_full_det_x_code, z=resample_full_det_x_z, reuse=True, scope="generator_det_x")
         resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
@@ -848,12 +848,12 @@ class SPADE(object):
         de_nondet_prior_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_prior_real_logit, code_nondet_prior_fake_logit)
         de_nondet_prior_reg_loss = regularization_loss('discriminator_nondet_prior_code')
 
-        gp_nondet_loss = 0.01*(e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 0.1*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss) + 0.1*e_nondet_klctx2_loss) + e_nondet_negent_loss)
+        gp_nondet_loss = 0.01*(e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 1.0*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss) + 0.1*e_nondet_klctx2_loss) + e_nondet_negent_loss)
         g_nondet_loss = g_nondet_adv_loss + g_nondet_reg_loss + 10*g_nondet_feature_loss + 0.1*g_nondet_vgg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + gp_nondet_loss
         de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss
         d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
-        gp_det_loss = 0.01*(e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 0.1*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss) + 0.1*e_det_klctx2_loss) + e_det_negent_loss)
+        gp_det_loss = 0.01*(e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 1.0*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss) + 0.1*e_det_klctx2_loss) + e_det_negent_loss)
         g_det_loss = 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0.1*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + gp_det_loss 
         de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss
 
