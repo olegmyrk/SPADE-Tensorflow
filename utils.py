@@ -21,10 +21,10 @@ class Image_data:
 
         self.ctximage = []
         self.image = []
-        self.color_value_dict = {}
         self.pose = []
-        
         self.segmap = []
+
+        self.color_value_dict = {}
 
         self.set_x = set()
 
@@ -94,7 +94,7 @@ class Image_data:
             if len(other_keys) < 2: continue
             for other_key in other_keys:
                 if key == other_key: continue
-                #print("CelebA:", key, celeba, identity, other_celeba, other_key)
+                #print("CelebA:", key, identity, other_key)
                 self.ctximage.append(img_dataset_path + "/" + other_key + ".jpg")
                 self.image.append(img_dataset_path + "/" + key + ".jpg")
                 self.segmap.append(segmap_dataset_path + "/" + key + ".png")
