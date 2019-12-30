@@ -81,6 +81,8 @@ class Image_data:
 
         key_to_celeba = dict([(str(key),celeba) for key, _, celeba in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebA-HQ-to-CelebA-mapping.txt"))[1:])])
         celeba_to_key = dict([(celeba,key) for key, celeba in key_to_celeba.items()])
+        
+        key_to_pose = dict([(key.replace(".jpg",""),[float(yaw), float(pitch), float(raw)]) for key, yaw, pitch, raw in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebAMask-HQ-pose-anno.txt"))[2:])])
 
         key_to_pose = dict([(key.replace(".jpg",""),[float(yaw), float(pitch), float(raw)]) for key, yaw, pitch, raw in map(lambda s: " ".join(s.strip().split(" ")).split(), list(open(self.dataset_path + "/CelebAMask-HQ-pose-anno.txt"))[2:])])
 
