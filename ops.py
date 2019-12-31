@@ -69,7 +69,7 @@ weight_regularizer_fully = None
 
 def get_trainable_variable(name, shape=None, dtype=None, initializer=None, regularizer=None):
   variable = tf.compat.v1.get_variable(name, shape=shape, dtype=dtype, initializer=initializer, regularizer=regularizer)
-  tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, variable)
+  #tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, variable)
   return variable
 
 def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
@@ -91,13 +91,28 @@ def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True,
             if pad_type == 'reflect':
                 x = tf.pad(tensor=x, paddings=[[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]], mode='REFLECT')
 
-        w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
-                            regularizer=weight_regularizer)
-        x = tf.nn.conv2d(input=x, filters=spectral_norm(w, sn=sn),
-                         strides=[1, stride, stride, 1], padding='VALID')
-        if use_bias:
-            bias = get_trainable_variable("conv2d/bias", [channels], initializer=tf.constant_initializer(0.0))
-            x = tf.nn.bias_add(x, bias)
+        if sn:
+            w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
+                                regularizer=weight_regularizer)
+            x = tf.nn.conv2d(input=x, filters=spectral_norm(w),
+                             strides=[1, stride, stride, 1], padding='VALID')
+            if use_bias:
+                bias = get_trainable_variable("conv2d/bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
+                x = tf.nn.bias_add(x, bias)
+
+        else:
+            x = tf.compat.v1.layers.conv2d(inputs=x, filters=channels,
+                                 kernel_size=kernel, kernel_initializer=weight_init,
+                                 kernel_regularizer=weight_regularizer,
+                                 strides=stride, use_bias=use_bias)
+
+            #w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
+            #                    regularizer=weight_regularizer)
+            #x = tf.nn.conv2d(input=x, filters=w,
+            #                 strides=[1, stride, stride, 1], padding='VALID')
+            #if use_bias:
+            #    bias = get_trainable_variable("conv2d/bias", [channels], initializer=tf.constant_initializer(0.0))
+            #    x = tf.nn.bias_add(x, bias)
 
         return x
 
@@ -120,24 +135,36 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
                 mask_ratio = mask_ratio * update_mask
 
             with tf.compat.v1.variable_scope('x', reuse=reuse):
-                w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
-                                    initializer=weight_init, regularizer=weight_regularizer)
-                x = tf.nn.conv2d(input=x, filters=spectral_norm(w, sn=sn), strides=[1, stride, stride, 1], padding=padding)
+                if sn:
+                    w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
+                                        initializer=weight_init, regularizer=weight_regularizer)
+                    x = tf.nn.conv2d(input=x, filters=spectral_norm(w), strides=[1, stride, stride, 1], padding=padding)
+                else:
+                    x = tf.compat.v1.layers.conv2d(x, filters=channels,
+                                         kernel_size=kernel, kernel_initializer=weight_init,
+                                         kernel_regularizer=weight_regularizer,
+                                         strides=stride, padding=padding, use_bias=False)
                 x = x * mask_ratio
 
                 if use_bias:
-                    bias = get_trainable_variable("conv2d/bias", [channels], initializer=tf.constant_initializer(0.0))
+                    bias = get_trainable_variable("conv2d/bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
 
                     x = tf.nn.bias_add(x, bias)
                     x = x * update_mask
         else:
-            w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
-                                initializer=weight_init, regularizer=weight_regularizer)
-            x = tf.nn.conv2d(input=x, filters=spectral_norm(w, sn=sn), strides=[1, stride, stride, 1], padding=padding)
-            if use_bias:
-                bias = get_trainable_variable("conv2d/bias", [channels], initializer=tf.constant_initializer(0.0))
+            if sn:
+                w = get_trainable_variable("conv2d/kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
+                                    initializer=weight_init, regularizer=weight_regularizer)
+                x = tf.nn.conv2d(input=x, filters=spectral_norm(w), strides=[1, stride, stride, 1], padding=padding)
+                if use_bias:
+                    bias = get_trainable_variable("bias", [channels], initializer=tf.compat.v1.constant_initializer(0.0))
 
-                x = tf.nn.bias_add(x, bias)
+                    x = tf.nn.bias_add(x, bias)
+            else:
+                x = tf.compat.v1.layers.conv2d(x, filters=channels,
+                                     kernel_size=kernel, kernel_initializer=weight_init,
+                                     kernel_regularizer=weight_regularizer,
+                                     strides=stride, padding=padding, use_bias=use_bias)
 
         return x
 
@@ -147,15 +174,30 @@ def fully_connected(x, units, use_bias=True, sn=False, reuse=tf.compat.v1.AUTO_R
         shape = x.get_shape().as_list()
         channels = shape[-1]
 
-        w = get_trainable_variable("dense/kernel", [channels, units], tf.float32,
-                            initializer=weight_init, regularizer=weight_regularizer_fully)
-        if use_bias:
-            bias = get_trainable_variable("dense/bias", [units],
-                                   initializer=tf.constant_initializer(0.0))
+        if sn:
+            w = get_trainable_variable("dense/kernel", [channels, units], tf.float32,
+                                initializer=weight_init, regularizer=weight_regularizer_fully)
+            if use_bias:
+                bias = get_trainable_variable("dense/bias", [units],
+                                       initializer=tf.compat.v1.constant_initializer(0.0))
 
-            x = tf.matmul(x, spectral_norm(w, sn=sn)) + bias
+                x = tf.matmul(x, spectral_norm(w)) + bias
+            else:
+                x = tf.matmul(x, spectral_norm(w))
+
         else:
-            x = tf.matmul(x, spectral_norm(w, sn=sn))
+            x = tf.compat.v1.layers.dense(x, units=units, kernel_initializer=weight_init,
+                                kernel_regularizer=weight_regularizer_fully,
+                                use_bias=use_bias)
+            #w = get_trainable_variable("dense/kernel", [channels, units], tf.float32,
+            #                    initializer=weight_init, regularizer=weight_regularizer_fully)
+            #if use_bias:
+            #    bias = get_trainable_variable("dense/bias", [units],
+            #                           initializer=tf.constant_initializer(0.0))
+            #
+            #    x = tf.matmul(x, w) + bias
+            #else:
+            #    x = tf.matmul(x, w)
 
         return x
 
@@ -555,40 +597,35 @@ def batch_norm(x, epsilon=1e-5, reuse=tf.compat.v1.AUTO_REUSE, scope=None):
         result = tf.nn.batch_normalization(x, mean, var, offset, scale, epsilon)
     return result
 
-def spectral_norm(w, sn, iteration=1):
+def spectral_norm(w, iteration=1):
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
-    if sn:
-        u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
-        sigma = tf.compat.v1.get_variable("sigma", [1, 1], initializer=tf.constant_initializer(1.0), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
+    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.compat.v1.random_normal_initializer(), trainable=False, aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)#, synchronization=tf.compat.v2.VariableSynchronization.ON_READ)
 
-        u_hat = u
-        v_hat = None
-        for i in range(iteration):
-            """
-            power iteration
-            Usually iteration = 1 will be enough
-            """
-            v_ = tf.matmul(u_hat, tf.transpose(a=w))
-            v_hat = tf.nn.l2_normalize(v_)
+    u_hat = u
+    v_hat = None
+    for i in range(iteration):
+        """
+        power iteration
+        Usually iteration = 1 will be enough
+        """
+        v_ = tf.matmul(u_hat, tf.transpose(a=w))
+        v_hat = tf.nn.l2_normalize(v_)
 
-            u_ = tf.matmul(v_hat, w)
-            u_hat = tf.nn.l2_normalize(u_)
+        u_ = tf.matmul(v_hat, w)
+        u_hat = tf.nn.l2_normalize(u_)
 
-        u_hat = tf.stop_gradient(u_hat)
-        v_hat = tf.stop_gradient(v_hat)
+    u_hat = tf.stop_gradient(u_hat)
+    v_hat = tf.stop_gradient(v_hat)
 
-        sigma_hat = tf.matmul(tf.matmul(v_hat, w), tf.transpose(a=u_hat))
+    sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(a=u_hat))
 
-        u.assign(u_hat)
-        sigma.assign(sigma_hat)
-
-        final_sigma = sigma_hat
-    else:
-        final_sigma = 1.0
-
-    w_norm = w / final_sigma
+    #with tf.control_dependencies([u.assign(u_hat)]):
+    #    w_norm = w / sigma
+    #    w_norm = tf.reshape(w_norm, w_shape)
+    u.assign(u_hat)
+    w_norm = w / sigma
     w_norm = tf.reshape(w_norm, w_shape)
 
     return w_norm
