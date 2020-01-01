@@ -312,11 +312,12 @@ class SPADE(object):
             features.append(x)
 
             x = lrelu(x, 0.2)
+            output = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_output')
             mean = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_mean')
             var = conv(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_var')
             logits = conv(tf.stop_gradient(x), channels=self.segmap_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='linear_logits')
 
-            return features, [[tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))], logits]
+            return output, features, [[tanh(mean), tf.math.log(epsilon + tf.sigmoid(var))], logits]
 
     def decoder_features(self, code, features, z, sn, reuse=False, scope=None):
         context = code
@@ -720,8 +721,7 @@ class SPADE(object):
 
         fake_full_det_x_code = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode, real_x_pose],-1)
         fake_full_det_x_z = tf.concat([fake_det_x_code, 0*fake_det_x_full_ctxcode],-1)
-        fake_det_x_features, fake_det_x_stats = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, sn=self.sn_det, scope="generator_det_x")
-        fake_det_x_output = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, sn=self.sn_det, scope="generator_det_x_alt")[1][0][0]
+        fake_det_x_output, fake_det_x_features, fake_det_x_stats = self.decoder(fake_full_det_x_code, z=fake_full_det_x_z, sn=self.sn_det, scope="generator_det_x")
         fake_det_x_scaffold = fake_det_x_features#tf.concat([fake_det_x_stats[0][0], fake_det_x_stats[1]], -1)
         fake_det_x_mean, fake_det_x_var = fake_det_x_stats[0]
         fake_det_x_segmap_logits = fake_det_x_stats[1]
@@ -734,7 +734,7 @@ class SPADE(object):
 
         random_full_det_x_code = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode, real_x_pose], -1)
         random_full_det_x_z = tf.concat([random_det_code, 0*fake_det_x_full_ctxcode], -1)
-        random_fake_det_x_features, random_fake_det_x_stats = self.decoder(random_full_det_x_code, z=random_full_det_x_z, sn=self.sn_det, reuse=True, scope="generator_det_x")
+        random_fake_det_x_output, random_fake_det_x_features, random_fake_det_x_stats = self.decoder(random_full_det_x_code, z=random_full_det_x_z, sn=self.sn_det, reuse=True, scope="generator_det_x")
         random_fake_det_x_scaffold = random_fake_det_x_features#tf.concat([random_fake_det_x_stats[0][0], random_fake_det_x_stats[1]], -1)
         random_fake_det_x_mean, random_fake_det_x_var = random_fake_det_x_stats[0]
         random_fake_det_x_segmap_logits = random_fake_det_x_stats[1]
@@ -746,7 +746,7 @@ class SPADE(object):
 
         resample_full_det_x_code = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode, real_x_pose], -1)
         resample_full_det_x_z = tf.concat([resample_det_code, 0*fake_det_x_full_ctxcode], -1)
-        resample_fake_det_x_features, resample_fake_det_x_stats = self.decoder(resample_full_det_x_code, z=resample_full_det_x_z, sn=self.sn_det, reuse=True, scope="generator_det_x")
+        resample_fake_det_x_output, resample_fake_det_x_features, resample_fake_det_x_stats = self.decoder(resample_full_det_x_code, z=resample_full_det_x_z, sn=self.sn_det, reuse=True, scope="generator_det_x")
         resample_fake_det_x_scaffold = resample_fake_det_x_features#tf.concat([resample_fake_det_x_stats[0][0], resample_fake_det_x_stats[1]], -1)
         resample_fake_det_x_mean, resample_fake_det_x_var = resample_fake_det_x_stats[0]
         resample_fake_det_x_segmap_logits = resample_fake_det_x_stats[1]
