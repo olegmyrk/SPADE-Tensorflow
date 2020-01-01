@@ -16,6 +16,7 @@ class SPADE(object):
     def __init__(self, args):
 
         self.model_name = 'SPADE'
+        self.train_det = args.train_det
         self.train_nondet = args.train_nondet
 
         self.checkpoint_dir = args.checkpoint_dir
@@ -1154,7 +1155,7 @@ class SPADE(object):
             dataset = distribute_strategy.experimental_distribute_dataset(dataset)
             return dataset
 
-        dataset = build_dataset(self.img_class_train)
+        train_dataset = iter(build_dataset(self.img_class_train))
         validate_dataset = iter(build_dataset(self.img_class_validate))
 
         with distribute_strategy.scope():
@@ -1191,26 +1192,37 @@ class SPADE(object):
             start_time = time.time()
 
             def train_loop():
-                def work_det(train, *inputs):
+                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
+                def train_det(*inputs):
                     def work_fn(*inputs):
                         global_step = tf.compat.v1.train.get_or_create_global_step()
                         with tf.GradientTape(persistent=True) as tape:
                             inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det), _, _ = self.execute_model(*inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
-                        if train:
-                            self.DE_det_optim.apply_gradients(zip(tape.gradient(losses_det.de_det_loss, self.DE_det_vars), self.DE_det_vars))
-                            self.GP_det_optim.apply_gradients(zip(tape.gradient(losses_det.gp_det_loss, self.GP_det_vars), self.GP_det_vars))
-                            self.G_det_optim.apply_gradients(zip(tape.gradient(losses_det.g_det_loss, self.G_det_vars), self.G_det_vars))
-                            summaries_det(global_step)
-                            global_step.assign_add(1)
-                        return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det
+                        self.DE_det_optim.apply_gradients(zip(tape.gradient(losses_det.de_det_loss, self.DE_det_vars), self.DE_det_vars))
+                        self.GP_det_optim.apply_gradients(zip(tape.gradient(losses_det.gp_det_loss, self.GP_det_vars), self.GP_det_vars))
+                        self.G_det_optim.apply_gradients(zip(tape.gradient(losses_det.g_det_loss, self.G_det_vars), self.G_det_vars))
+                        summaries_det(global_step)
+                        global_step.assign_add(1)
+                        return tf.convert_to_tensor(global_step), result_losses_det
 
-                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = distribute_strategy.experimental_run_v2(work_fn, args=inputs)
+                    result_counter, result_losses_det = distribute_strategy.experimental_run_v2(work_fn, args=inputs)
 
                     converted_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
+                    converted_losses_det = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses_det))
+
+                    return converted_counter, converted_losses_det
+
+                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
+                def eval_det(*inputs):
+                    def work_fn(*inputs):
+                        inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det), _, _ = self.execute_model(*inputs)
+                        result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
+                        return inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det
+
+                    result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = distribute_strategy.experimental_run_v2(work_fn, args=inputs)
 
                     converted_inputs = list(map(lambda result_input: tf.concat(distribute_strategy.experimental_local_results(result_input), axis=0), result_inputs))
-
                     converted_losses_det = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses_det))
 
                     def convert_outputs(result_outputs):
@@ -1220,37 +1232,43 @@ class SPADE(object):
                     converted_outputs_resample_det = convert_outputs(result_outputs_resample_det)
                     converted_outputs_random_det = convert_outputs(result_outputs_random_det)
 
-                    return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det
+                    return converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_det_grad(*inputs):
-                    return work_det(True, *inputs)
-
-                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def eval_det(*inputs):
-                    return work_det(False, *inputs)
-
-                def work_nondet(train, *inputs):
+                def train_nondet(*inputs):
                     def work_fn(*inputs):
                         global_step = tf.compat.v1.train.get_or_create_global_step()
                         with tf.GradientTape(persistent=True) as tape:
                             inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_resample_nondet, outputs_random_nondet) = self.execute_model(*inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
                         result_losses_nondet = (losses_nondet.g_nondet_loss, losses_nondet.gp_nondet_loss, losses_nondet.de_nondet_loss, losses_nondet.d_nondet_loss)
-                        if train:
-                            self.D_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.d_nondet_loss, self.D_nondet_vars), self.D_nondet_vars))
-                            self.DE_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.de_nondet_loss, self.DE_nondet_vars), self.DE_nondet_vars))
-                            self.GP_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.gp_nondet_loss, self.GP_nondet_vars), self.GP_nondet_vars))
-                            self.G_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.g_nondet_loss, self.G_nondet_vars), self.G_nondet_vars))
-                            summaries_det(global_step)
-                            summaries_nondet(global_step)
-                            global_step.assign_add(1)
-                        return tf.convert_to_tensor(global_step), inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, result_losses_nondet, outputs_nondet, outputs_resample_nondet, outputs_random_nondet
+                        self.D_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.d_nondet_loss, self.D_nondet_vars), self.D_nondet_vars))
+                        self.DE_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.de_nondet_loss, self.DE_nondet_vars), self.DE_nondet_vars))
+                        self.GP_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.gp_nondet_loss, self.GP_nondet_vars), self.GP_nondet_vars))
+                        self.G_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.g_nondet_loss, self.G_nondet_vars), self.G_nondet_vars))
+                        summaries_det(global_step)
+                        summaries_nondet(global_step)
+                        global_step.assign_add(1)
+                        return tf.convert_to_tensor(global_step), result_losses_det, result_losses_nondet
 
-                    result_counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = distribute_strategy.experimental_run_v2(workfn, args=inputs)
+                    result_counter, result_losses_det, result_losses_nondet = distribute_strategy.experimental_run_v2(workfn, args=inputs)
                    
                     converted_counter = tf.reduce_mean(distribute_strategy.experimental_local_results(result_counter))
+                    converted_losses_det = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses_det))
+                    converted_losses_nondet = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses_nondet))
 
+                    return converted_counter, converted_losses_det, converted_losses_nondet
+
+                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
+                def eval_nondet(*inputs):
+                    def work_fn(*inputs):
+                        inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_resample_nondet, outputs_random_nondet) = self.execute_model(*inputs)
+                        result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
+                        result_losses_nondet = (losses_nondet.g_nondet_loss, losses_nondet.gp_nondet_loss, losses_nondet.de_nondet_loss, losses_nondet.d_nondet_loss)
+                        return inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, result_losses_nondet, outputs_nondet, outputs_resample_nondet, outputs_random_nondet
+
+                    result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = distribute_strategy.experimental_run_v2(workfn, args=inputs)
+                   
                     converted_inputs = list(map(lambda result_input: tf.concat(distribute_strategy.experimental_local_results(result_input), axis=0), result_inputs))
 
                     converted_losses_det = list(map(lambda result_loss: tf.reduce_mean(distribute_strategy.experimental_local_results(result_loss)), result_losses_det))
@@ -1267,33 +1285,22 @@ class SPADE(object):
                     converted_outputs_resample_nondet = convert_outputs(result_outputs_resample_nondet)
                     converted_outputs_random_nondet = convert_outputs(result_outputs_random_nondet)
 
-                    return converted_counter, converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det, converted_losses_nondet, converted_outputs_nondet, converted_outputs_resample_nondet, converted_outputs_random_nondet
-
-                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def train_nondet_grad(*inputs):
-                    return work_nondet(True, *inputs)
-
-                @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def eval_nondet(*inputs):
-                    return work_nondet(False, *inputs)
+                    return converted_inputs, converted_losses_det, converted_outputs_det, converted_outputs_resample_det, converted_outputs_random_det, converted_losses_nondet, converted_outputs_nondet, converted_outputs_resample_nondet, converted_outputs_random_nondet
 
                 # training loop
                 with self.writer.as_default():
-                    for inputs_idx, inputs in enumerate(dataset):
-                        print("> Training step %s" % (inputs_idx,), time.time())
+                    while True:
+                        print("> Training step %s" % time.time())
 
                         print("L1", time.time())
-                        if not self.train_nondet:
+                        if self.train_det:
                             print("L2DET", time.time())
-                            #tf.summary.trace_on(graph=True, profiler=True)
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = train_det_grad(*inputs)
-                            #tf.summary.trace_export(
-                            #      name="train_det_grad",
-                            #      step=counter,
-                            #      profiler_outdir="timeline/%s/" % (self.model_name,))
-                        else:
+                            inputs = next(train_dataset)
+                            counter, result_losses_det = train_det(*inputs)
+                        if self.train_nondet:
                             print("L2NONDET", time.time())
-                            counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = train_nondet_grad(*inputs)
+                            inputs = next(train_dataset)
+                            counter, result_losses_det, result_losses_nondet = train_nondet(*inputs)
 
                         print("L4",  time.time())
                         epoch = (counter-1) // self.iteration 
@@ -1305,28 +1312,36 @@ class SPADE(object):
                             self.report_losses_nondet(counter, epoch, idx, time.time() - start_time, *result_losses_nondet, mode="train")
 
                         if (idx+1) % self.print_freq == 0:
+                            inputs = next(train_dataset)
+                            if not self.train_nondet:
+                                print("L6DET", time.time())
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs)
+                            else:
+                                print("L7NONDET", time.time())
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs)
+
                             print("L6",  time.time())
                             self.report_tensors(epoch, idx, self.report_inputs, result_inputs, mode="train")
                             self.report_all_outputs_det(epoch, idx, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, mode="train")
                             if self.train_nondet:
                                 self.report_all_outputs_nondet(epoch, idx, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet, mode="train")
+
                         if (idx+1) % self.validate_freq == 0: 
                             inputs = next(validate_dataset)
-
                             if not self.train_nondet:
-                                print("L2DETV", time.time())
-                                counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs)
+                                print("L6DETV", time.time())
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs)
                             else:
-                                print("L2NONDETV", time.time())
-                                counter, result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs)
+                                print("L7NONDETV", time.time())
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs)
 
-                            print("L5V",  time.time())
+                            print("L8V",  time.time())
                             self.report_losses_det(counter, epoch, idx, time.time() - start_time, *result_losses_det, mode="validate")
                             if self.train_nondet:
                                 self.report_losses_nondet(counter, epoch, idx, time.time() - start_time, *result_losses_nondet, mode="validate")
 
                             if (idx+1) % self.print_freq == 0:
-                                print("L6V",  time.time())
+                                print("L9V",  time.time())
                                 self.report_tensors(epoch, idx, self.report_inputs, result_inputs, mode="validate")
                                 self.report_all_outputs_det(epoch, idx, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, mode="validate")
                                 if self.train_nondet:
@@ -1334,10 +1349,10 @@ class SPADE(object):
 
 
                         if counter-1 > 0 and (counter-1) % self.save_freq == 0:
-                            print("L7",  time.time())
+                            print("L10",  time.time())
                             checkpoint_manager.save()
 
-                    print("L3",  time.time())
+                    print("L11",  time.time())
                     self.writer.flush()
                     
             train_loop()
