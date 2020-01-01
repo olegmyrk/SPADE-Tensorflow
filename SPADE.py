@@ -873,94 +873,94 @@ class SPADE(object):
         random_fake_nondet_x = random_fake_nondet_x_output
 
         """" Summary """
-        def summaries_det(global_step):
-            summary_global_step = tf.summary.scalar("global_step", global_step, step=global_step)
+        def summaries_det(global_step, mode):
+            summary_global_step = tf.summary.scalar("global_step/" + mode, global_step, step=global_step)
 
-            summary_g_det_loss = tf.summary.scalar("g_det_loss", g_det_loss, step=global_step)
-            summary_gp_det_loss = tf.summary.scalar("gp_det_loss", gp_det_loss, step=global_step)
-            summary_de_det_loss = tf.summary.scalar("de_det_loss", de_det_loss, step=global_step)
+            summary_g_det_loss = tf.summary.scalar("g_det_loss/" + mode, g_det_loss, step=global_step)
+            summary_gp_det_loss = tf.summary.scalar("gp_det_loss/" + mode, gp_det_loss, step=global_step)
+            summary_de_det_loss = tf.summary.scalar("de_det_loss/" + mode, de_det_loss, step=global_step)
 
-            summary_g_det_code_ce_loss = tf.summary.scalar("g_det_code_ce_loss", g_det_code_ce_loss, step=global_step)
-            summary_e_det_code_kl_loss = tf.summary.scalar("e_det_code_kl_loss", e_det_code_kl_loss, step=global_step)
-            summary_e_det_klctx_loss = tf.summary.scalar("e_det_klctx_loss", e_det_klctx_loss, step=global_step)
-            summary_e_det_code_kl2_loss = tf.summary.scalar("e_det_code_kl2_loss", e_det_code_kl2_loss, step=global_step)
-            summary_e_det_klctx2_loss = tf.summary.scalar("e_det_klctx2_loss", e_det_klctx2_loss, step=global_step)
-            summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss", e_det_code_prior_loss, step=global_step)
-            summary_e_det_code_prior2_loss = tf.summary.scalar("e_det_code_prior2_loss", e_det_code_prior2_loss, step=global_step)
-            summary_e_det_priorctx_loss = tf.summary.scalar("e_det_priorctx_loss", e_det_priorctx_loss, step=global_step)
-            summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss", e_det_code_negent_loss, step=global_step)
-            summary_e_det_negentctx_loss = tf.summary.scalar("e_det_negentctx_loss", e_det_negentctx_loss, step=global_step)
+            summary_g_det_code_ce_loss = tf.summary.scalar("g_det_code_ce_loss/" + mode, g_det_code_ce_loss, step=global_step)
+            summary_e_det_code_kl_loss = tf.summary.scalar("e_det_code_kl_loss/" + mode, e_det_code_kl_loss, step=global_step)
+            summary_e_det_klctx_loss = tf.summary.scalar("e_det_klctx_loss/" + mode, e_det_klctx_loss, step=global_step)
+            summary_e_det_code_kl2_loss = tf.summary.scalar("e_det_code_kl2_loss/" + mode, e_det_code_kl2_loss, step=global_step)
+            summary_e_det_klctx2_loss = tf.summary.scalar("e_det_klctx2_loss/" + mode, e_det_klctx2_loss, step=global_step)
+            summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss/" + mode, e_det_code_prior_loss, step=global_step)
+            summary_e_det_code_prior2_loss = tf.summary.scalar("e_det_code_prior2_loss/" + mode, e_det_code_prior2_loss, step=global_step)
+            summary_e_det_priorctx_loss = tf.summary.scalar("e_det_priorctx_loss/" + mode, e_det_priorctx_loss, step=global_step)
+            summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss/" + mode, e_det_code_negent_loss, step=global_step)
+            summary_e_det_negentctx_loss = tf.summary.scalar("e_det_negentctx_loss/" + mode, e_det_negentctx_loss, step=global_step)
 
-            summary_e_det_crossklctx_loss = tf.summary.scalar("e_det_crossklctx_loss", e_det_crossklctx_loss, step=global_step)
-            summary_e_det_rcrossklctx_loss = tf.summary.scalar("e_det_rcrossklctx_loss", e_det_rcrossklctx_loss, step=global_step)
-            summary_e_det_crosswsctx_loss = tf.summary.scalar("e_det_crosswsctx_loss", e_det_crosswsctx_loss, step=global_step)
+            summary_e_det_crossklctx_loss = tf.summary.scalar("e_det_crossklctx_loss/" + mode, e_det_crossklctx_loss, step=global_step)
+            summary_e_det_rcrossklctx_loss = tf.summary.scalar("e_det_rcrossklctx_loss/" + mode, e_det_rcrossklctx_loss, step=global_step)
+            summary_e_det_crosswsctx_loss = tf.summary.scalar("e_det_crosswsctx_loss/" + mode, e_det_crosswsctx_loss, step=global_step)
 
-            summary_e_det_kl_loss = tf.summary.scalar("e_det_kl_loss", e_det_kl_loss, step=global_step)
-            summary_e_det_negent_loss = tf.summary.scalar("e_det_negent_loss", e_det_negent_loss, step=global_step)
-            summary_e_det_prior_loss = tf.summary.scalar("e_det_prior_loss", e_det_prior_loss, step=global_step)
-            summary_e_det_prior2_loss = tf.summary.scalar("e_det_prior2_loss", e_det_prior2_loss, step=global_step)
-            summary_e_det_crosskl_loss = tf.summary.scalar("e_det_crosskl_loss", e_det_crosskl_loss, step=global_step)
-            summary_e_det_rcrosskl_loss = tf.summary.scalar("e_det_rcrosskl_loss", e_det_rcrosskl_loss, step=global_step)
-            summary_e_det_crossws_loss = tf.summary.scalar("e_det_crossws_loss", e_det_crossws_loss, step=global_step)
-            summary_e_det_kl2_loss = tf.summary.scalar("e_det_kl2_loss", e_det_kl2_loss, step=global_step)
-            summary_e_det_reg_loss = tf.summary.scalar("det_e_reg_loss", e_det_reg_loss, step=global_step)
-            summary_e_det_prior_adv_loss = tf.summary.scalar("e_det_prior_adv_loss", e_det_prior_adv_loss, step=global_step)
+            summary_e_det_kl_loss = tf.summary.scalar("e_det_kl_loss/" + mode, e_det_kl_loss, step=global_step)
+            summary_e_det_negent_loss = tf.summary.scalar("e_det_negent_loss/" + mode, e_det_negent_loss, step=global_step)
+            summary_e_det_prior_loss = tf.summary.scalar("e_det_prior_loss/" + mode, e_det_prior_loss, step=global_step)
+            summary_e_det_prior2_loss = tf.summary.scalar("e_det_prior2_loss/" + mode, e_det_prior2_loss, step=global_step)
+            summary_e_det_crosskl_loss = tf.summary.scalar("e_det_crosskl_loss/" + mode, e_det_crosskl_loss, step=global_step)
+            summary_e_det_rcrosskl_loss = tf.summary.scalar("e_det_rcrosskl_loss/" + mode, e_det_rcrosskl_loss, step=global_step)
+            summary_e_det_crossws_loss = tf.summary.scalar("e_det_crossws_loss/" + mode, e_det_crossws_loss, step=global_step)
+            summary_e_det_kl2_loss = tf.summary.scalar("e_det_kl2_loss/" + mode, e_det_kl2_loss, step=global_step)
+            summary_e_det_reg_loss = tf.summary.scalar("det_e_reg_loss/" + mode, e_det_reg_loss, step=global_step)
+            summary_e_det_prior_adv_loss = tf.summary.scalar("e_det_prior_adv_loss/" + mode, e_det_prior_adv_loss, step=global_step)
 
-            summary_g_det_ce_loss = tf.summary.scalar("g_det_ce_loss", g_det_ce_loss, step=global_step)
-            summary_g_det_ce_loss = tf.summary.scalar("g_det_segmapce_loss", g_det_segmapce_loss, step=global_step)
-            summary_g_det_vgg_loss = tf.summary.scalar("g_det_vgg_loss", g_det_vgg_loss, step=global_step)
-            summary_g_det_reg_loss = tf.summary.scalar("g_det_reg_loss", g_det_reg_loss, step=global_step)
+            summary_g_det_ce_loss = tf.summary.scalar("g_det_ce_loss/" + mode, g_det_ce_loss, step=global_step)
+            summary_g_det_ce_loss = tf.summary.scalar("g_det_segmapce_loss/" + mode, g_det_segmapce_loss, step=global_step)
+            summary_g_det_vgg_loss = tf.summary.scalar("g_det_vgg_loss/" + mode, g_det_vgg_loss, step=global_step)
+            summary_g_det_reg_loss = tf.summary.scalar("g_det_reg_loss/" + mode, g_det_reg_loss, step=global_step)
 
-            summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss", de_det_prior_adv_loss, step=global_step)
-            summary_de_det_prior_reg_loss = tf.summary.scalar("de_det_prior_reg_loss", de_det_prior_reg_loss, step=global_step)
+            summary_de_det_prior_adv_loss = tf.summary.scalar("de_det_prior_adv_loss/" + mode, de_det_prior_adv_loss, step=global_step)
+            summary_de_det_prior_reg_loss = tf.summary.scalar("de_det_prior_reg_loss/" + mode, de_det_prior_reg_loss, step=global_step)
 
-        def summaries_nondet(global_step):
-            summary_g_nondet_loss = tf.summary.scalar("g_nondet_loss", g_nondet_loss, step=global_step)
-            summary_gp_nondet_loss = tf.summary.scalar("gp_nondet_loss", gp_nondet_loss, step=global_step)
-            summary_de_nondet_loss = tf.summary.scalar("de_nondet_loss", de_nondet_loss, step=global_step)
-            summary_d_nondet_loss = tf.summary.scalar("d_nondet_loss", d_nondet_loss, step=global_step)
+        def summaries_nondet(global_step, mode):
+            summary_g_nondet_loss = tf.summary.scalar("g_nondet_loss/" + mode, g_nondet_loss, step=global_step)
+            summary_gp_nondet_loss = tf.summary.scalar("gp_nondet_loss/" + mode, gp_nondet_loss, step=global_step)
+            summary_de_nondet_loss = tf.summary.scalar("de_nondet_loss/" + mode, de_nondet_loss, step=global_step)
+            summary_d_nondet_loss = tf.summary.scalar("d_nondet_loss/" + mode, d_nondet_loss, step=global_step)
 
-            summary_g_nondet_code_ce_loss = tf.summary.scalar("g_nondet_code_ce_loss", g_nondet_code_ce_loss, step=global_step)
-            summary_e_nondet_code_kl_loss = tf.summary.scalar("e_nondet_code_kl_loss", e_nondet_code_kl_loss, step=global_step)
-            summary_e_nondet_klctx_loss = tf.summary.scalar("e_nondet_klctx_loss", e_nondet_klctx_loss, step=global_step)
-            summary_e_nondet_code_kl2_loss = tf.summary.scalar("e_nondet_code_kl2_loss", e_nondet_code_kl2_loss, step=global_step)
-            summary_e_nondet_klctx2_loss = tf.summary.scalar("e_nondet_klctx2_loss", e_nondet_klctx2_loss, step=global_step)
-            summary_e_nondet_code_prior_loss = tf.summary.scalar("e_nondet_code_prior_loss", e_nondet_code_prior_loss, step=global_step)
-            summary_e_nondet_code_prior2_loss = tf.summary.scalar("e_nondet_code_prior2_loss", e_nondet_code_prior2_loss, step=global_step)
-            summary_e_nondet_priorctx_loss = tf.summary.scalar("e_nondet_priorctx_loss", e_nondet_priorctx_loss, step=global_step)
-            summary_e_nondet_code_negent_loss = tf.summary.scalar("e_nondet_code_negent_loss", e_nondet_code_negent_loss, step=global_step)
-            summary_e_nondet_negentctx_loss = tf.summary.scalar("e_nondet_negentctx_loss", e_nondet_negentctx_loss, step=global_step)
+            summary_g_nondet_code_ce_loss = tf.summary.scalar("g_nondet_code_ce_loss/" + mode, g_nondet_code_ce_loss, step=global_step)
+            summary_e_nondet_code_kl_loss = tf.summary.scalar("e_nondet_code_kl_loss/" + mode, e_nondet_code_kl_loss, step=global_step)
+            summary_e_nondet_klctx_loss = tf.summary.scalar("e_nondet_klctx_loss/" + mode, e_nondet_klctx_loss, step=global_step)
+            summary_e_nondet_code_kl2_loss = tf.summary.scalar("e_nondet_code_kl2_loss/" + mode, e_nondet_code_kl2_loss, step=global_step)
+            summary_e_nondet_klctx2_loss = tf.summary.scalar("e_nondet_klctx2_loss/" + mode, e_nondet_klctx2_loss, step=global_step)
+            summary_e_nondet_code_prior_loss = tf.summary.scalar("e_nondet_code_prior_loss/" + mode, e_nondet_code_prior_loss, step=global_step)
+            summary_e_nondet_code_prior2_loss = tf.summary.scalar("e_nondet_code_prior2_loss/" + mode, e_nondet_code_prior2_loss, step=global_step)
+            summary_e_nondet_priorctx_loss = tf.summary.scalar("e_nondet_priorctx_loss/" + mode, e_nondet_priorctx_loss, step=global_step)
+            summary_e_nondet_code_negent_loss = tf.summary.scalar("e_nondet_code_negent_loss/" + mode, e_nondet_code_negent_loss, step=global_step)
+            summary_e_nondet_negentctx_loss = tf.summary.scalar("e_nondet_negentctx_loss/" + mode, e_nondet_negentctx_loss, step=global_step)
 
-            summary_e_nondet_crossklctx_loss = tf.summary.scalar("e_nondet_crossklctx_loss", e_nondet_crossklctx_loss, step=global_step)
-            summary_e_nondet_rcrossklctx_loss = tf.summary.scalar("e_nondet_rcrossklctx_loss", e_nondet_rcrossklctx_loss, step=global_step)
-            summary_e_nondet_crosswsctx_loss = tf.summary.scalar("e_nondet_crosswsctx_loss", e_nondet_crosswsctx_loss, step=global_step)
+            summary_e_nondet_crossklctx_loss = tf.summary.scalar("e_nondet_crossklctx_loss/" + mode, e_nondet_crossklctx_loss, step=global_step)
+            summary_e_nondet_rcrossklctx_loss = tf.summary.scalar("e_nondet_rcrossklctx_loss/" + mode, e_nondet_rcrossklctx_loss, step=global_step)
+            summary_e_nondet_crosswsctx_loss = tf.summary.scalar("e_nondet_crosswsctx_loss/" + mode, e_nondet_crosswsctx_loss, step=global_step)
 
-            summary_e_nondet_kl_loss = tf.summary.scalar("e_nondet_kl_loss", e_nondet_kl_loss, step=global_step)
-            summary_e_nondet_negent_loss = tf.summary.scalar("e_nondet_negent_loss", e_nondet_negent_loss, step=global_step)
-            summary_e_nondet_prior_loss = tf.summary.scalar("e_nondet_prior_loss", e_nondet_prior_loss, step=global_step)
-            summary_e_nondet_prior2_loss = tf.summary.scalar("e_nondet_prior2_loss", e_nondet_prior2_loss, step=global_step)
-            summary_e_nondet_crosskl_loss = tf.summary.scalar("e_nondet_crosskl_loss", e_nondet_crosskl_loss, step=global_step)
-            summary_e_nondet_rcrosskl_loss = tf.summary.scalar("e_nondet_rcrosskl_loss", e_nondet_rcrosskl_loss, step=global_step)
-            summary_e_nondet_crossws_loss = tf.summary.scalar("e_nondet_crossws_loss", e_nondet_crossws_loss, step=global_step)
-            summary_e_nondet_kl2_loss = tf.summary.scalar("e_nondet_kl2_loss", e_nondet_kl2_loss, step=global_step)
-            summary_e_nondet_reg_loss = tf.summary.scalar("e_nondet_reg_loss", e_nondet_reg_loss, step=global_step)
-            summary_e_nondet_prior_adv_loss = tf.summary.scalar("e_nondet_prior_adv_loss", e_nondet_prior_adv_loss, step=global_step)
+            summary_e_nondet_kl_loss = tf.summary.scalar("e_nondet_kl_loss/" + mode, e_nondet_kl_loss, step=global_step)
+            summary_e_nondet_negent_loss = tf.summary.scalar("e_nondet_negent_loss/" + mode, e_nondet_negent_loss, step=global_step)
+            summary_e_nondet_prior_loss = tf.summary.scalar("e_nondet_prior_loss/" + mode, e_nondet_prior_loss, step=global_step)
+            summary_e_nondet_prior2_loss = tf.summary.scalar("e_nondet_prior2_loss/" + mode, e_nondet_prior2_loss, step=global_step)
+            summary_e_nondet_crosskl_loss = tf.summary.scalar("e_nondet_crosskl_loss/" + mode, e_nondet_crosskl_loss, step=global_step)
+            summary_e_nondet_rcrosskl_loss = tf.summary.scalar("e_nondet_rcrosskl_loss/" + mode, e_nondet_rcrosskl_loss, step=global_step)
+            summary_e_nondet_crossws_loss = tf.summary.scalar("e_nondet_crossws_loss/" + mode, e_nondet_crossws_loss, step=global_step)
+            summary_e_nondet_kl2_loss = tf.summary.scalar("e_nondet_kl2_loss/" + mode, e_nondet_kl2_loss, step=global_step)
+            summary_e_nondet_reg_loss = tf.summary.scalar("e_nondet_reg_loss/" + mode, e_nondet_reg_loss, step=global_step)
+            summary_e_nondet_prior_adv_loss = tf.summary.scalar("e_nondet_prior_adv_loss/" + mode, e_nondet_prior_adv_loss, step=global_step)
 
-            summary_g_nondet_ce_loss = tf.summary.scalar("g_nondet_ce_loss", g_nondet_ce_loss, step=global_step)
-            summary_g_nondet_vgg_loss = tf.summary.scalar("g_nondet_vgg_loss", g_nondet_vgg_loss, step=global_step)
-            summary_g_nondet_feature_loss = tf.summary.scalar("g_nondet_feature_loss", g_nondet_feature_loss, step=global_step)
-            summary_g_nondet_reg_loss = tf.summary.scalar("g_nondet_reg_loss", g_nondet_reg_loss, step=global_step)
-            summary_g_nondet_adv_loss = tf.summary.scalar("g_nondet_adv_loss", g_nondet_adv_loss, step=global_step)
+            summary_g_nondet_ce_loss = tf.summary.scalar("g_nondet_ce_loss/" + mode, g_nondet_ce_loss, step=global_step)
+            summary_g_nondet_vgg_loss = tf.summary.scalar("g_nondet_vgg_loss/" + mode, g_nondet_vgg_loss, step=global_step)
+            summary_g_nondet_feature_loss = tf.summary.scalar("g_nondet_feature_loss/" + mode, g_nondet_feature_loss, step=global_step)
+            summary_g_nondet_reg_loss = tf.summary.scalar("g_nondet_reg_loss/" + mode, g_nondet_reg_loss, step=global_step)
+            summary_g_nondet_adv_loss = tf.summary.scalar("g_nondet_adv_loss/" + mode, g_nondet_adv_loss, step=global_step)
         
-            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss", d_nondet_adv_loss, step=global_step)
-            summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss", d_nondet_reg_loss, step=global_step)
+            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_adv_loss/" + mode, d_nondet_adv_loss, step=global_step)
+            summary_d_nondet_reg_loss = tf.summary.scalar("d_nondet_reg_loss/" + mode, d_nondet_reg_loss, step=global_step)
             
-            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_real", d_nondet_score_real, step=global_step)
-            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_fake", d_nondet_score_fake, step=global_step)
-            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_diff", d_nondet_score_diff, step=global_step)
+            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_real/" + mode, d_nondet_score_real, step=global_step)
+            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_fake/" + mode, d_nondet_score_fake, step=global_step)
+            summary_d_nondet_adv_loss = tf.summary.scalar("d_nondet_score_diff/" + mode, d_nondet_score_diff, step=global_step)
             
-            summary_de_nondet_prior_adv_loss = tf.summary.scalar("de_nondet_prior_adv_loss", de_nondet_prior_adv_loss, step=global_step)
-            summary_de_nondet_prior_reg_loss = tf.summary.scalar("de_nondet_prior_reg_loss", de_nondet_prior_reg_loss, step=global_step)
+            summary_de_nondet_prior_adv_loss = tf.summary.scalar("de_nondet_prior_adv_loss/" + mode, de_nondet_prior_adv_loss, step=global_step)
+            summary_de_nondet_prior_reg_loss = tf.summary.scalar("de_nondet_prior_reg_loss/" + mode, de_nondet_prior_reg_loss, step=global_step)
        
         inputs = (real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot)
             
@@ -1202,7 +1202,7 @@ class SPADE(object):
                         self.DE_det_optim.apply_gradients(zip(tape.gradient(losses_det.de_det_loss, self.DE_det_vars), self.DE_det_vars))
                         self.GP_det_optim.apply_gradients(zip(tape.gradient(losses_det.gp_det_loss, self.GP_det_vars), self.GP_det_vars))
                         self.G_det_optim.apply_gradients(zip(tape.gradient(losses_det.g_det_loss, self.G_det_vars), self.G_det_vars))
-                        summaries_det(global_step)
+                        summaries_det(global_step, "train")
                         global_step.assign_add(1)
                         return tf.convert_to_tensor(global_step), result_losses_det
 
@@ -1214,10 +1214,13 @@ class SPADE(object):
                     return converted_counter, converted_losses_det
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def eval_det(*inputs):
+                def eval_det(*inputs, summary_mode):
                     def work_fn(*inputs):
+                        global_step = tf.compat.v1.train.get_or_create_global_step()
                         inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det), _, _ = self.execute_model(*inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
+                        if summary_mode:
+                            summaries_det(global_step, summary_mode)
                         return inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det
 
                     result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = distribute_strategy.experimental_run_v2(work_fn, args=inputs)
@@ -1246,8 +1249,8 @@ class SPADE(object):
                         self.DE_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.de_nondet_loss, self.DE_nondet_vars), self.DE_nondet_vars))
                         self.GP_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.gp_nondet_loss, self.GP_nondet_vars), self.GP_nondet_vars))
                         self.G_nondet_optim.apply_gradients(zip(tape.gradient(losses_nondet.g_nondet_loss, self.G_nondet_vars), self.G_nondet_vars))
-                        summaries_det(global_step)
-                        summaries_nondet(global_step)
+                        summaries_det(global_step, "train")
+                        summaries_nondet(global_step, "train")
                         global_step.assign_add(1)
                         return tf.convert_to_tensor(global_step), result_losses_det, result_losses_nondet
 
@@ -1260,11 +1263,15 @@ class SPADE(object):
                     return converted_counter, converted_losses_det, converted_losses_nondet
 
                 @tf.function(experimental_autograph_options=(tf.autograph.experimental.Feature.EQUALITY_OPERATORS,tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS))
-                def eval_nondet(*inputs):
+                def eval_nondet(*inputs, summary_mode):
                     def work_fn(*inputs):
+                        global_step = tf.compat.v1.train.get_or_create_global_step()
                         inputs, (losses_det, outputs_det, summaries_det), (outputs_resample_det, outputs_random_det), (losses_nondet, outputs_nondet, summaries_nondet), (outputs_resample_nondet, outputs_random_nondet) = self.execute_model(*inputs)
                         result_losses_det = (losses_det.g_det_loss, losses_det.gp_det_loss, losses_det.de_det_loss)
                         result_losses_nondet = (losses_nondet.g_nondet_loss, losses_nondet.gp_nondet_loss, losses_nondet.de_nondet_loss, losses_nondet.d_nondet_loss)
+                        if summary_mode:
+                            summaries_det(global_step, summary_mode)
+                            summaries_nondet(global_step, summary_mode)
                         return inputs, result_losses_det, outputs_det, outputs_resample_det, outputs_random_det, result_losses_nondet, outputs_nondet, outputs_resample_nondet, outputs_random_nondet
 
                     result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = distribute_strategy.experimental_run_v2(workfn, args=inputs)
@@ -1315,10 +1322,10 @@ class SPADE(object):
                             inputs = next(train_dataset)
                             if not self.train_nondet:
                                 print("L6DET", time.time())
-                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs)
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs, summary_mode=None)
                             else:
                                 print("L7NONDET", time.time())
-                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs)
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs, summary_mode=None)
 
                             print("L6",  time.time())
                             self.report_tensors(epoch, idx, self.report_inputs, result_inputs, mode="train")
@@ -1330,10 +1337,10 @@ class SPADE(object):
                             inputs = next(validate_dataset)
                             if not self.train_nondet:
                                 print("L6DETV", time.time())
-                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs)
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det = eval_det(*inputs, summary_mode="validate")
                             else:
                                 print("L7NONDETV", time.time())
-                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs)
+                                result_inputs, result_losses_det, result_outputs_det, result_outputs_resample_det, result_outputs_random_det, result_losses_nondet, result_outputs_nondet, result_outputs_resample_nondet, result_outputs_random_nondet = eval_nondet(*inputs, summary_mode="validate")
 
                             print("L8V",  time.time())
                             self.report_losses_det(counter, epoch, idx, time.time() - start_time, *result_losses_det, mode="validate")
