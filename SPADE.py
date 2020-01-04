@@ -799,7 +799,6 @@ class SPADE(object):
         g_nondet_feature_loss = feature_loss(nondet_real_logit, nondet_fake_logit)
         g_nondet_reg_loss = regularization_loss('generator_nondet_x')
 
-        #g_det_ce_loss = L2_loss(real_x, fake_det_x_mean)
         g_det_ce_loss = gaussian_loss(real_x, fake_det_x_mean, fake_det_x_var)
         g_det_segmapce_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=real_x_segmap_onehot, logits=fake_det_x_stats[1]))
         g_det_vgg_loss = self.vgg_loss(real_x, fake_det_x_mean)
@@ -807,63 +806,69 @@ class SPADE(object):
         g_det_feature_loss = feature_loss(det_real_logit, det_fake_logit)
         g_det_reg_loss = regularization_loss('generator_det_x')
 
-        #g_nondet_code_ce_loss = L2_mean_loss(code_stop_gradient(fake_nondet_x_code), fake_nondet_x_code_mean)
         g_nondet_code_ce_loss = gaussian_loss(code_stop_gradient(fake_nondet_x_code), fake_nondet_x_code_mean, fake_nondet_x_code_logvar)
-        e_nondet_code_kl_loss = kl_loss(x_nondet_supercode_mean, x_nondet_supercode_logvar)
-        e_nondet_code_prior_loss = gaussian_loss(fake_nondet_x_supercode, prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
-        e_nondet_code_prior2_loss = -tf.reduce_mean(prior_nondet_supercode_dist.log_prob(supercode_stop_gradient(fake_nondet_x_supercode))) / int(fake_nondet_x_supercode.get_shape()[-1])
+        e_nondet_code_priordist_loss = -tf.reduce_mean(prior_nondet_supercode_dist.log_prob(supercode_stop_gradient(fake_nondet_x_supercode))) / int(fake_nondet_x_supercode.get_shape()[-1])
         e_nondet_code_negent_loss = negent_loss(x_nondet_supercode_mean, x_nondet_supercode_logvar)
-        #e_nondet_code_kl2_loss = kl_loss2(x_nondet_supercode_mean, x_nondet_supercode_logvar, prior_nondet_supercode_mean, prior_nondet_supercode_logvar)
-        e_nondet_code_kl2_loss = (e_nondet_code_prior2_loss + e_nondet_code_negent_loss)
-                
+        e_nondet_code_kldist_loss = (e_nondet_code_priordist_loss + e_nondet_code_negent_loss)
+        
+        g_nondet_codectx_ce_loss = gaussian_loss(code_stop_gradient(fake_nondet_x_codectx), fake_nondet_x_codectx_mean, fake_nondet_x_codectx_logvar)
+        e_nondet_codectx_priordist_loss = -tf.reduce_mean(input_tensor=prior_nondet_supercode_dist.log_prob(supercode_stop_gradient(fake_nondet_x_supercodectx))) / int(fake_nondet_x_supercodectx.get_shape()[-1])
+        e_nondet_codectx_negent_loss = negent_loss(x_nondet_supercodectx_mean, x_nondet_supercodectx_logvar)
+        e_nondet_codectx_kldist_loss = (e_nondet_codectx_priordist_loss + e_nondet_codectx_negent_loss) 
+        
         e_nondet_prior_adv_loss = generator_loss(self.code_gan_type, code_nondet_prior_fake_logit)
-        e_nondet_kl_loss = kl_loss(x_nondet_code_mean, x_nondet_code_logvar)
         e_nondet_prior_loss = gaussian_loss(fake_nondet_x_code, prior_nondet_code_mean, prior_nondet_code_logvar)
         e_nondet_negent_loss = negent_loss(x_nondet_code_mean, x_nondet_code_logvar)
-        e_nondet_prior2_loss = gaussian_loss(tf.stop_gradient(fake_nondet_x_code), prior_nondet_code_mean, prior_nondet_code_logvar)
+        e_nondet_kl_loss = (e_nondet_prior_loss + e_nondet_negent_loss)
+        e_nondet_reg_loss = regularization_loss('encoder_nondet_code')
+
         e_nondet_crosskl_loss = kl_loss2(x_nondet_codectx_mean, x_nondet_codectx_logvar, x_nondet_code_mean, x_nondet_code_logvar)
         e_nondet_rcrosskl_loss = kl_loss2(x_nondet_code_mean, x_nondet_code_logvar, x_nondet_codectx_mean, x_nondet_codectx_logvar)
         e_nondet_crossws_loss = gaussian_wasserstein2_loss(x_nondet_codectx_mean, x_nondet_codectx_logvar, x_nondet_code_mean, x_nondet_code_logvar)
-        e_nondet_kl2_loss = (e_nondet_prior2_loss + e_nondet_negent_loss)
-        e_nondet_reg_loss = regularization_loss('encoder_nondet_code')
         
-        e_nondet_klctx_loss = kl_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        e_nondet_crossklctx_loss = kl_loss2(x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar, x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        e_nondet_rcrossklctx_loss = kl_loss2(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar, x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar)
-        e_nondet_crosswsctx_loss = gaussian_wasserstein2_loss(x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar, x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        e_nondet_priorctx_loss = gaussian_loss(fake_nondet_x_ctxcode, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
-        e_nondet_negentctx_loss = negent_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
-        #e_nondet_klctx2_loss = kl_loss2(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
-        e_nondet_klctx2_loss = (e_nondet_priorctx_loss + e_nondet_negentctx_loss)
+        e_nondet_ctxprior_loss = gaussian_loss(fake_nondet_x_ctxcode, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
+        e_nondet_ctxnegent_loss = negent_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
+        e_nondet_ctxkl_loss = (e_nondet_ctxprior_loss + e_nondet_ctxnegent_loss)
 
-        #g_det_code_ce_loss = L2_mean_loss(code_stop_gradient(fake_det_x_code), fake_det_x_code_mean)
+        e_nondet_ctxpriorx_loss = gaussian_loss(fake_nondet_x_ctxcodex, prior_nondet_ctxcode_mean, prior_nondet_ctxcode_logvar)
+        e_nondet_ctxnegentx_loss = negent_loss(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
+        e_nondet_ctxklx_loss = (e_nondet_ctxpriorx_loss + e_nondet_ctxnegentx_loss)
+
+        e_nondet_ctxcrosskl_loss = kl_loss2(x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar, x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
+        e_nondet_ctxrcrosskl_loss = kl_loss2(x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar, x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar)
+        e_nondet_ctxcrossws_loss = gaussian_wasserstein2_loss(x_nondet_ctxcodex_mean, x_nondet_ctxcodex_logvar, x_nondet_ctxcode_mean, x_nondet_ctxcode_logvar)
+
         g_det_code_ce_loss = gaussian_loss(code_stop_gradient(fake_det_x_code), fake_det_x_code_mean, fake_det_x_code_logvar)
-        e_det_code_kl_loss = kl_loss(x_det_supercode_mean, x_det_supercode_logvar)
-        e_det_code_prior_loss = gaussian_loss(fake_det_x_supercode, prior_det_supercode_mean, prior_det_supercode_logvar)
-        e_det_code_prior2_loss = -tf.reduce_mean(input_tensor=prior_det_supercode_dist.log_prob(supercode_stop_gradient(fake_det_x_supercode))) / int(fake_det_x_supercode.get_shape()[-1])
+        e_det_code_priordist_loss = -tf.reduce_mean(input_tensor=prior_det_supercode_dist.log_prob(supercode_stop_gradient(fake_det_x_supercode))) / int(fake_det_x_supercode.get_shape()[-1])
         e_det_code_negent_loss = negent_loss(x_det_supercode_mean, x_det_supercode_logvar)
-        #e_det_code_kl2_loss = kl_loss2(x_det_supercode_mean, x_det_supercode_logvar, prior_det_supercode_mean, prior_det_supercode_logvar)
-        e_det_code_kl2_loss = (e_det_code_prior2_loss + e_det_code_negent_loss) 
+        e_det_code_kldist_loss = (e_det_code_priordist_loss + e_det_code_negent_loss) 
+
+        g_det_codectx_ce_loss = gaussian_loss(code_stop_gradient(fake_det_x_codectx), fake_det_x_codectx_mean, fake_det_x_codectx_logvar)
+        e_det_codectx_priordist_loss = -tf.reduce_mean(input_tensor=prior_det_supercode_dist.log_prob(supercode_stop_gradient(fake_det_x_supercodectx))) / int(fake_det_x_supercodectx.get_shape()[-1])
+        e_det_codectx_negent_loss = negent_loss(x_det_supercodectx_mean, x_det_supercodectx_logvar)
+        e_det_codectx_kldist_loss = (e_det_codectx_priordist_loss + e_det_codectx_negent_loss) 
 
         e_det_prior_adv_loss = generator_loss(self.code_gan_type, code_det_prior_fake_logit)
-        e_det_kl_loss = kl_loss(x_det_code_mean, x_det_code_logvar)
         e_det_prior_loss = gaussian_loss(fake_det_x_code, prior_det_code_mean, prior_det_code_logvar)
         e_det_negent_loss = negent_loss(x_det_code_mean, x_det_code_logvar)
-        e_det_prior2_loss = gaussian_loss(tf.stop_gradient(fake_det_x_code), prior_det_code_mean, prior_det_code_logvar) 
+        e_det_kl_loss = (e_det_prior_loss + e_det_negent_loss)
+        e_det_reg_loss = regularization_loss('encoder_det_code')
+
         e_det_crosskl_loss = kl_loss2(x_det_codectx_mean, x_det_codectx_logvar, x_det_code_mean, x_det_code_logvar)
         e_det_rcrosskl_loss = kl_loss2(x_det_code_mean, x_det_code_logvar, x_det_codectx_mean, x_det_codectx_logvar)
         e_det_crossws_loss = gaussian_wasserstein2_loss(x_det_codectx_mean, x_det_codectx_logvar, x_det_code_mean, x_det_code_logvar)
-        e_det_kl2_loss = (e_det_prior2_loss + e_det_negent_loss)
-        e_det_reg_loss = regularization_loss('encoder_det_code')
-        
-        e_det_klctx_loss = kl_loss(x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        e_det_crossklctx_loss = kl_loss2(x_det_ctxcodex_mean, x_det_ctxcodex_logvar, x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        e_det_rcrossklctx_loss = kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_logvar, x_det_ctxcodex_mean, x_det_ctxcodex_logvar)
-        e_det_crosswsctx_loss = gaussian_wasserstein2_loss(x_det_ctxcodex_mean, x_det_ctxcodex_logvar, x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        e_det_priorctx_loss = gaussian_loss(fake_det_x_ctxcode, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
-        e_det_negentctx_loss = negent_loss(x_det_ctxcode_mean, x_det_ctxcode_logvar)
-        #e_det_klctx2_loss = kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_logvar, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
-        e_det_klctx2_loss = (e_det_priorctx_loss + e_det_negentctx_loss)
+
+        e_det_ctxprior_loss = gaussian_loss(fake_det_x_ctxcode, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
+        e_det_ctxnegent_loss = negent_loss(x_det_ctxcode_mean, x_det_ctxcode_logvar)
+        e_det_ctxkl_loss = (e_det_ctxprior_loss + e_det_ctxnegent_loss)
+
+        e_det_ctxpriorx_loss = gaussian_loss(fake_det_x_ctxcodex, prior_det_ctxcode_mean, prior_det_ctxcode_logvar)
+        e_det_ctxnegentx_loss = negent_loss(x_det_ctxcode_mean, x_det_ctxcode_logvar)
+        e_det_ctxklx_loss = (e_det_ctxpriorx_loss + e_det_ctxnegentx_loss)
+
+        e_det_ctxcrosskl_loss = kl_loss2(x_det_ctxcodex_mean, x_det_ctxcodex_logvar, x_det_ctxcode_mean, x_det_ctxcode_logvar)
+        e_det_ctxrcrosskl_loss = kl_loss2(x_det_ctxcode_mean, x_det_ctxcode_logvar, x_det_ctxcodex_mean, x_det_ctxcodex_logvar)
+        e_det_ctxcrossws_loss = gaussian_wasserstein2_loss(x_det_ctxcodex_mean, x_det_ctxcodex_logvar, x_det_ctxcode_mean, x_det_ctxcode_logvar)
 
         d_det_adv_loss = discriminator_loss(self.gan_type, det_real_logit, det_fake_logit)
         d_det_score_real, d_det_score_fake = discriminator_scores(det_real_logit, det_fake_logit)
@@ -881,13 +886,17 @@ class SPADE(object):
         de_nondet_prior_adv_loss = discriminator_loss(self.code_gan_type, code_nondet_prior_real_logit, code_nondet_prior_fake_logit)
         de_nondet_prior_reg_loss = regularization_loss('discriminator_nondet_prior_code')
 
-        gp_nondet_loss = 1.0*(0*e_nondet_prior_loss + e_nondet_prior2_loss + (g_nondet_code_ce_loss + 1.0*(0*e_nondet_code_prior_loss + e_nondet_code_prior2_loss + e_nondet_code_negent_loss)) + e_nondet_negent_loss) + 1e-6*e_nondet_klctx2_loss
-        g_nondet_loss = g_nondet_adv_loss + 0*g_nondet_feature_loss + 0.1*g_nondet_vgg_loss + g_nondet_reg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + gp_nondet_loss
+        gp_nondet_supercode_loss = g_nondet_code_ce_loss + 1.0*(e_nondet_code_priordist_loss + e_nondet_code_negent_loss) + 1e-6*e_nondet_ctxkl_loss
+        gp_nondet_supercodectx_loss = g_nondet_codectx_ce_loss + 1.0*(e_nondet_codectx_priordist_loss + e_nondet_codectx_negent_loss) + 1e-6*e_nondet_ctxklx_loss
+        gp_nondet_loss = gp_nondet_supercode_loss + gp_nondet_supercodectx_loss
+        g_nondet_loss = g_nondet_adv_loss + 0*g_nondet_feature_loss + 0.1*g_nondet_vgg_loss + g_nondet_reg_loss + tf.zeros_like(g_nondet_ce_loss) + 0*e_nondet_prior_adv_loss + e_nondet_reg_loss + 1.0*(0*e_nondet_prior_loss + gp_nondet_supercode_loss + e_nondet_negent_loss)
         de_nondet_loss = de_nondet_prior_adv_loss + de_nondet_prior_reg_loss
         d_nondet_loss = d_nondet_adv_loss + d_nondet_reg_loss
 
-        gp_det_loss = 1.0*(0*e_det_prior_loss + e_det_prior2_loss + (g_det_code_ce_loss + 1.0*(0*e_det_code_prior_loss + e_det_code_prior2_loss + e_det_code_negent_loss)) + e_det_negent_loss) + 1e-6*e_det_klctx2_loss
-        g_det_loss = g_det_adv_loss + 0*g_det_feature_loss + 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0.1*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + gp_det_loss 
+        gp_det_supercode_loss = g_det_code_ce_loss + 1.0*(e_det_code_priordist_loss + e_det_code_negent_loss) + 1e-6*e_det_ctxkl_loss
+        gp_det_supercodectx_loss = g_det_codectx_ce_loss + 1.0*(e_det_codectx_priordist_loss + e_det_codectx_negent_loss) + 1e-6*e_det_ctxklx_loss
+        gp_det_loss = gp_det_supercode_loss + gp_det_supercodectx_loss
+        g_det_loss = g_det_adv_loss + 0*g_det_feature_loss + 10*g_det_ce_loss + 10*g_det_segmapce_loss + 0.1*g_det_vgg_loss + g_det_reg_loss + 0*e_det_prior_adv_loss + e_det_reg_loss + 1.0*(0*e_det_prior_loss + gp_det_supercode_loss + e_det_negent_loss)
         de_det_loss = de_det_prior_adv_loss + de_det_prior_reg_loss
         d_det_loss = d_det_adv_loss + d_det_reg_loss
 
@@ -913,28 +922,33 @@ class SPADE(object):
             summary_d_det_loss = tf.summary.scalar("d_det_loss/" + mode, d_det_loss, step=global_step)
 
             summary_g_det_code_ce_loss = tf.summary.scalar("g_det_code_ce_loss/" + mode, g_det_code_ce_loss, step=global_step)
-            summary_e_det_code_kl_loss = tf.summary.scalar("e_det_code_kl_loss/" + mode, e_det_code_kl_loss, step=global_step)
-            summary_e_det_klctx_loss = tf.summary.scalar("e_det_klctx_loss/" + mode, e_det_klctx_loss, step=global_step)
-            summary_e_det_code_kl2_loss = tf.summary.scalar("e_det_code_kl2_loss/" + mode, e_det_code_kl2_loss, step=global_step)
-            summary_e_det_klctx2_loss = tf.summary.scalar("e_det_klctx2_loss/" + mode, e_det_klctx2_loss, step=global_step)
-            summary_e_det_code_prior_loss = tf.summary.scalar("e_det_code_prior_loss/" + mode, e_det_code_prior_loss, step=global_step)
-            summary_e_det_code_prior2_loss = tf.summary.scalar("e_det_code_prior2_loss/" + mode, e_det_code_prior2_loss, step=global_step)
-            summary_e_det_priorctx_loss = tf.summary.scalar("e_det_priorctx_loss/" + mode, e_det_priorctx_loss, step=global_step)
+            summary_e_det_code_priordist_loss = tf.summary.scalar("e_det_code_priordist_loss/" + mode, e_det_code_priordist_loss, step=global_step)
             summary_e_det_code_negent_loss = tf.summary.scalar("e_det_code_negent_loss/" + mode, e_det_code_negent_loss, step=global_step)
-            summary_e_det_negentctx_loss = tf.summary.scalar("e_det_negentctx_loss/" + mode, e_det_negentctx_loss, step=global_step)
+            summary_e_det_code_kldist_loss = tf.summary.scalar("e_det_code_kldist_loss/" + mode, e_det_code_kldist_loss, step=global_step)
 
-            summary_e_det_crossklctx_loss = tf.summary.scalar("e_det_crossklctx_loss/" + mode, e_det_crossklctx_loss, step=global_step)
-            summary_e_det_rcrossklctx_loss = tf.summary.scalar("e_det_rcrossklctx_loss/" + mode, e_det_rcrossklctx_loss, step=global_step)
-            summary_e_det_crosswsctx_loss = tf.summary.scalar("e_det_crosswsctx_loss/" + mode, e_det_crosswsctx_loss, step=global_step)
+            summary_g_det_codectx_ce_loss = tf.summary.scalar("g_det_codectx_ce_loss/" + mode, g_det_codectx_ce_loss, step=global_step)
+            summary_e_det_codectx_priordist_loss = tf.summary.scalar("e_det_codectx_priordist_loss/" + mode, e_det_codectx_priordist_loss, step=global_step)
+            summary_e_det_codectx_negent_loss = tf.summary.scalar("e_det_codectx_negent_loss/" + mode, e_det_codectx_negent_loss, step=global_step)
+            summary_e_det_codectx_kldist_loss = tf.summary.scalar("e_det_codectx_kldist_loss/" + mode, e_det_codectx_kldist_loss, step=global_step)
+            
+            summary_e_det_ctxprior_loss = tf.summary.scalar("e_det_ctxprior_loss/" + mode, e_det_ctxprior_loss, step=global_step)
+            summary_e_det_ctxnegent_loss = tf.summary.scalar("e_det_ctxnegent_loss/" + mode, e_det_ctxnegent_loss, step=global_step)
+            summary_e_det_ctxkl_loss = tf.summary.scalar("e_det_ctxkl_loss/" + mode, e_det_ctxkl_loss, step=global_step)
+
+            summary_e_det_ctxpriorx_loss = tf.summary.scalar("e_det_ctxpriorx_loss/" + mode, e_det_ctxpriorx_loss, step=global_step)
+            summary_e_det_ctxnegentx_loss = tf.summary.scalar("e_det_ctxnegentx_loss/" + mode, e_det_ctxnegentx_loss, step=global_step)
+            summary_e_det_ctxklx_loss = tf.summary.scalar("e_det_ctxklx_loss/" + mode, e_det_ctxklx_loss, step=global_step)
+
+            summary_e_det_ctxcrosskl_loss = tf.summary.scalar("e_det_ctxcrosskl_loss/" + mode, e_det_ctxcrosskl_loss, step=global_step)
+            summary_e_det_ctxrcrosskl_loss = tf.summary.scalar("e_det_ctxrcrosskl_loss/" + mode, e_det_ctxrcrosskl_loss, step=global_step)
+            summary_e_det_ctxcrossws_loss = tf.summary.scalar("e_det_ctxcrossws_loss/" + mode, e_det_ctxcrossws_loss, step=global_step)
 
             summary_e_det_kl_loss = tf.summary.scalar("e_det_kl_loss/" + mode, e_det_kl_loss, step=global_step)
             summary_e_det_negent_loss = tf.summary.scalar("e_det_negent_loss/" + mode, e_det_negent_loss, step=global_step)
             summary_e_det_prior_loss = tf.summary.scalar("e_det_prior_loss/" + mode, e_det_prior_loss, step=global_step)
-            summary_e_det_prior2_loss = tf.summary.scalar("e_det_prior2_loss/" + mode, e_det_prior2_loss, step=global_step)
             summary_e_det_crosskl_loss = tf.summary.scalar("e_det_crosskl_loss/" + mode, e_det_crosskl_loss, step=global_step)
             summary_e_det_rcrosskl_loss = tf.summary.scalar("e_det_rcrosskl_loss/" + mode, e_det_rcrosskl_loss, step=global_step)
             summary_e_det_crossws_loss = tf.summary.scalar("e_det_crossws_loss/" + mode, e_det_crossws_loss, step=global_step)
-            summary_e_det_kl2_loss = tf.summary.scalar("e_det_kl2_loss/" + mode, e_det_kl2_loss, step=global_step)
             summary_e_det_reg_loss = tf.summary.scalar("det_e_reg_loss/" + mode, e_det_reg_loss, step=global_step)
             summary_e_det_prior_adv_loss = tf.summary.scalar("e_det_prior_adv_loss/" + mode, e_det_prior_adv_loss, step=global_step)
 
@@ -962,30 +976,36 @@ class SPADE(object):
             summary_d_nondet_loss = tf.summary.scalar("d_nondet_loss/" + mode, d_nondet_loss, step=global_step)
 
             summary_g_nondet_code_ce_loss = tf.summary.scalar("g_nondet_code_ce_loss/" + mode, g_nondet_code_ce_loss, step=global_step)
-            summary_e_nondet_code_kl_loss = tf.summary.scalar("e_nondet_code_kl_loss/" + mode, e_nondet_code_kl_loss, step=global_step)
-            summary_e_nondet_klctx_loss = tf.summary.scalar("e_nondet_klctx_loss/" + mode, e_nondet_klctx_loss, step=global_step)
-            summary_e_nondet_code_kl2_loss = tf.summary.scalar("e_nondet_code_kl2_loss/" + mode, e_nondet_code_kl2_loss, step=global_step)
-            summary_e_nondet_klctx2_loss = tf.summary.scalar("e_nondet_klctx2_loss/" + mode, e_nondet_klctx2_loss, step=global_step)
-            summary_e_nondet_code_prior_loss = tf.summary.scalar("e_nondet_code_prior_loss/" + mode, e_nondet_code_prior_loss, step=global_step)
-            summary_e_nondet_code_prior2_loss = tf.summary.scalar("e_nondet_code_prior2_loss/" + mode, e_nondet_code_prior2_loss, step=global_step)
-            summary_e_nondet_priorctx_loss = tf.summary.scalar("e_nondet_priorctx_loss/" + mode, e_nondet_priorctx_loss, step=global_step)
+            summary_e_nondet_code_priordist_loss = tf.summary.scalar("e_nondet_code_priordist_loss/" + mode, e_nondet_code_priordist_loss, step=global_step)
             summary_e_nondet_code_negent_loss = tf.summary.scalar("e_nondet_code_negent_loss/" + mode, e_nondet_code_negent_loss, step=global_step)
-            summary_e_nondet_negentctx_loss = tf.summary.scalar("e_nondet_negentctx_loss/" + mode, e_nondet_negentctx_loss, step=global_step)
+            summary_e_nondet_code_kldist_loss = tf.summary.scalar("e_nondet_code_kldist_loss/" + mode, e_nondet_code_kldist_loss, step=global_step)
 
-            summary_e_nondet_crossklctx_loss = tf.summary.scalar("e_nondet_crossklctx_loss/" + mode, e_nondet_crossklctx_loss, step=global_step)
-            summary_e_nondet_rcrossklctx_loss = tf.summary.scalar("e_nondet_rcrossklctx_loss/" + mode, e_nondet_rcrossklctx_loss, step=global_step)
-            summary_e_nondet_crosswsctx_loss = tf.summary.scalar("e_nondet_crosswsctx_loss/" + mode, e_nondet_crosswsctx_loss, step=global_step)
+            summary_g_nondet_codectx_ce_loss = tf.summary.scalar("g_nondet_codectx_ce_loss/" + mode, g_nondet_codectx_ce_loss, step=global_step)
+            summary_e_nondet_codectx_priordist_loss = tf.summary.scalar("e_nondet_codectx_priordist_loss/" + mode, e_nondet_codectx_priordist_loss, step=global_step)
+            summary_e_nondet_codectx_negent_loss = tf.summary.scalar("e_nondet_codectx_negent_loss/" + mode, e_nondet_codectx_negent_loss, step=global_step)
+            summary_e_nondet_codectx_kldist_loss = tf.summary.scalar("e_nondet_codectx_kldist_loss/" + mode, e_nondet_codectx_kldist_loss, step=global_step)
+
+            summary_e_nondet_ctxprior_loss = tf.summary.scalar("e_nondet_ctxprior_loss/" + mode, e_nondet_ctxprior_loss, step=global_step)
+            summary_e_nondet_ctxnegent_loss = tf.summary.scalar("e_nondet_ctxnegent_loss/" + mode, e_nondet_ctxnegent_loss, step=global_step)
+            summary_e_nondet_ctxkl_loss = tf.summary.scalar("e_nondet_ctxkl_loss/" + mode, e_nondet_ctxkl_loss, step=global_step)
+
+            summary_e_nondet_ctxpriorx_loss = tf.summary.scalar("e_nondet_ctxpriorx_loss/" + mode, e_nondet_ctxpriorx_loss, step=global_step)
+            summary_e_nondet_ctxnegentx_loss = tf.summary.scalar("e_nondet_ctxnegentx_loss/" + mode, e_nondet_ctxnegentx_loss, step=global_step)
+            summary_e_nondet_ctxklx_loss = tf.summary.scalar("e_nondet_ctxklx_loss/" + mode, e_nondet_ctxklx_loss, step=global_step)
+
+            summary_e_nondet_ctxcrosskl_loss = tf.summary.scalar("e_nondet_ctxcrosskl_loss/" + mode, e_nondet_ctxcrosskl_loss, step=global_step)
+            summary_e_nondet_ctxrcrosskl_loss = tf.summary.scalar("e_nondet_ctxrcrosskl_loss/" + mode, e_nondet_ctxrcrosskl_loss, step=global_step)
+            summary_e_nondet_ctxcrossws_loss = tf.summary.scalar("e_nondet_ctxcrossws_loss/" + mode, e_nondet_ctxcrossws_loss, step=global_step)
 
             summary_e_nondet_kl_loss = tf.summary.scalar("e_nondet_kl_loss/" + mode, e_nondet_kl_loss, step=global_step)
             summary_e_nondet_negent_loss = tf.summary.scalar("e_nondet_negent_loss/" + mode, e_nondet_negent_loss, step=global_step)
             summary_e_nondet_prior_loss = tf.summary.scalar("e_nondet_prior_loss/" + mode, e_nondet_prior_loss, step=global_step)
-            summary_e_nondet_prior2_loss = tf.summary.scalar("e_nondet_prior2_loss/" + mode, e_nondet_prior2_loss, step=global_step)
+            summary_e_nondet_reg_loss = tf.summary.scalar("e_nondet_reg_loss/" + mode, e_nondet_reg_loss, step=global_step)
+            summary_e_nondet_prior_adv_loss = tf.summary.scalar("e_nondet_prior_adv_loss/" + mode, e_nondet_prior_adv_loss, step=global_step)
+
             summary_e_nondet_crosskl_loss = tf.summary.scalar("e_nondet_crosskl_loss/" + mode, e_nondet_crosskl_loss, step=global_step)
             summary_e_nondet_rcrosskl_loss = tf.summary.scalar("e_nondet_rcrosskl_loss/" + mode, e_nondet_rcrosskl_loss, step=global_step)
             summary_e_nondet_crossws_loss = tf.summary.scalar("e_nondet_crossws_loss/" + mode, e_nondet_crossws_loss, step=global_step)
-            summary_e_nondet_kl2_loss = tf.summary.scalar("e_nondet_kl2_loss/" + mode, e_nondet_kl2_loss, step=global_step)
-            summary_e_nondet_reg_loss = tf.summary.scalar("e_nondet_reg_loss/" + mode, e_nondet_reg_loss, step=global_step)
-            summary_e_nondet_prior_adv_loss = tf.summary.scalar("e_nondet_prior_adv_loss/" + mode, e_nondet_prior_adv_loss, step=global_step)
 
             summary_g_nondet_ce_loss = tf.summary.scalar("g_nondet_ce_loss/" + mode, g_nondet_ce_loss, step=global_step)
             summary_g_nondet_vgg_loss = tf.summary.scalar("g_nondet_vgg_loss/" + mode, g_nondet_vgg_loss, step=global_step)
@@ -1003,7 +1023,7 @@ class SPADE(object):
             summary_de_nondet_prior_adv_loss = tf.summary.scalar("de_nondet_prior_adv_loss/" + mode, de_nondet_prior_adv_loss, step=global_step)
             summary_de_nondet_prior_reg_loss = tf.summary.scalar("de_nondet_prior_reg_loss/" + mode, de_nondet_prior_reg_loss, step=global_step)
        
-        inputs = (real_ctx, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot)
+        inputs = (real_ctx, real_ctx_pose, real_x, real_x_pose, real_x_segmap, real_x_segmap_onehot)
             
         losses_det = types.SimpleNamespace()
         losses_det.g_det_loss = g_det_loss
