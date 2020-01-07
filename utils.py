@@ -230,7 +230,7 @@ def augmentation(image, segmap, augment_height, augment_width):
 
     shape = tf.shape(input=image)
     limit = shape - size + 1
-    offset = tf.random.uniform(tf.shape(shape), size.dtype, size.dtype.max) % limit
+    offset = tf.random.uniform(tf.shape(shape), dtype=size.dtype, minval=0, maxval=size.dtype.max) % limit
     image = tf.slice(image, offset, size)
     segmap = tf.slice(segmap, offset, size)
 
