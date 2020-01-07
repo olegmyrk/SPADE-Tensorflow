@@ -627,13 +627,15 @@ class SPADE(object):
     def prepare_dataset(self):
         """ Input Image"""
         self.img_class_train = Image_data(self.img_height, self.img_width, self.img_ch, self.segmap_img_ch, self.dataset_path, self.augment_flag)
-        self.img_class_train.preprocess(is_train=True)
+        samples_train = self.img_class_train.preprocess(is_train=True)
+        print("Training samples:", samples_train)
         
         self.color_value_dict = self.img_class_train.color_value_dict
         self.segmap_ch = len(self.img_class_train.color_value_dict)
 
         self.img_class_validate = Image_data(self.img_height, self.img_width, self.img_ch, self.segmap_img_ch, self.dataset_path, self.augment_flag)
-        self.img_class_validate.preprocess(is_train=False)
+        samples_validate = self.img_class_validate.preprocess(is_train=False)
+        print("Validation samples:", samples_validate)
 
     def prepare_model(self):
         self.vgg_loss = VGGLoss() 
