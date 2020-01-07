@@ -20,6 +20,7 @@ class Image_data:
 
         self.ctximage = []
         self.ctxpose = []
+        self.ctxsegmap = []
         self.image = []
         self.pose = []
         self.segmap = []
@@ -29,11 +30,15 @@ class Image_data:
         self.set_x = set()
 
 
-    def image_processing(self, ctxfilename, ctxpose, filename, pose, segmap):
+    def image_processing(self, ctxfilename, ctxpose, ctxsegmap, filename, pose, segmap):
         ctx = tf.io.read_file(ctxfilename)
         ctx_decode = tf.image.decode_jpeg(ctx, channels=self.channels, dct_method='INTEGER_ACCURATE')
         ctximg = tf.image.resize(ctx_decode, [self.img_height, self.img_width])
         ctximg = tf.cast(ctximg, tf.float32) / 127.5 - 1
+
+        ctxsegmap_x = tf.io.read_file(ctxsegmap)
+        ctxsegmap_decode = tf.image.decode_jpeg(ctxsegmap_x, channels=self.segmap_channel, dct_method='INTEGER_ACCURATE')
+        ctxsegmap_img = tf.image.resize(ctxsegmap_decode, [self.img_height, self.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
         x = tf.io.read_file(filename)
         x_decode = tf.image.decode_jpeg(x, channels=self.channels, dct_method='INTEGER_ACCURATE')
@@ -45,18 +50,23 @@ class Image_data:
         segmap_img = tf.image.resize(segmap_decode, [self.img_height, self.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
         if self.augment_flag :
-            augment_height_size = self.img_height + (30 if self.img_height == 256 else int(self.img_height * 0.1))
-            augment_width_size = self.img_width + (30 if self.img_width == 256 else int(self.img_width * 0.1))
+            if random.random() > 0.5:
+                augment_height_size = self.img_height + (30 if self.img_height == 256 else int(self.img_height * 0.1))
+                augment_width_size = self.img_width + (30 if self.img_width == 256 else int(self.img_width * 0.1))
+                ctximg, ctxsegmap_img = augmentation(ctximg, ctxsegmap_img, augment_height_size, augment_width_size)
 
-            p = random.random()
-            if p > 0.5:
+            if random.random() > 0.5:
+                augment_height_size = self.img_height + (30 if self.img_height == 256 else int(self.img_height * 0.1))
+                augment_width_size = self.img_width + (30 if self.img_width == 256 else int(self.img_width * 0.1))
                 img, segmap_img = augmentation(img, segmap_img, augment_height_size, augment_width_size)
 
+        ctxlabel_map = convert_from_color_segmentation(self.color_value_dict, ctxsegmap_img, tensor_type=True)
+        ctxsegmap_onehot = tf.one_hot(ctxlabel_map, len(self.color_value_dict))
 
         label_map = convert_from_color_segmentation(self.color_value_dict, segmap_img, tensor_type=True)
         segmap_onehot = tf.one_hot(label_map, len(self.color_value_dict))
 
-        return ctximg, ctxpose, img, pose, segmap_img, segmap_onehot
+        return ctximg, ctxpose, ctxsegmap_img, ctxsegmap_onehot, img, pose, segmap_img, segmap_onehot
 
     def preprocess(self, is_train):
         img_dataset_path = os.path.join(self.dataset_path, 'CelebA-HQ-img')
@@ -98,6 +108,7 @@ class Image_data:
                 ctxpose = key_to_pose[other_key]
                 self.ctximage.append(img_dataset_path + "/" + other_key + ".jpg")
                 self.ctxpose.append(ctxpose)
+                self.ctxsegmap.append(segmap_dataset_path + "/" + other_key + ".png")
                 self.image.append(img_dataset_path + "/" + key + ".jpg")
                 self.pose.append(pose)
                 self.segmap.append(segmap_dataset_path + "/" + key + ".png")
@@ -210,17 +221,18 @@ def preprocessing(x):
     return x
 
 def augmentation(image, segmap, augment_height, augment_width):
-    seed = random.randint(0, 2 ** 31 - 1)
-
-    ori_image_shape = tf.shape(input=image)
-    image = tf.image.random_flip_left_right(image, seed=seed)
+    size = tf.shape(input=image)
+    if random.random() > 0.5:
+        image = tf.image.flip_left_right(image)
+        segmap = tf.image.flip_left_right(segmap)
     image = tf.image.resize(image, [augment_height, augment_width])
-    image = tf.image.random_crop(image, ori_image_shape, seed=seed)
-
-    ori_segmap_shape = tf.shape(input=segmap)
-    segmap = tf.image.random_flip_left_right(segmap, seed=seed)
     segmap = tf.image.resize(segmap, [augment_height, augment_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    segmap = tf.image.random_crop(segmap, ori_segmap_shape, seed=seed)
+
+    shape = tf.shape(input=image)
+    limit = shape - size + 1
+    offset = tf.random.uniform(tf.shape(shape), size.dtype, size.dtype.max) % limit
+    image = tf.slice(image, offset, size)
+    segmap = tf.slice(segmap, offset, size)
 
     return image, segmap
 
